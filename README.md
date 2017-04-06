@@ -1,6 +1,6 @@
 
-## JSON Schema Support
-The intention is to be able to capture in IGC the same level of richness as would typically be documented / used in an API -- hence the initial focus is around support for the Schema Object as defined by the Open API specification (https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#schema-object).
+## JSON Schemas
+The intention is to be able to capture in IBM Information Governance Catalog (IGC) the same level of richness as would typically be documented / used in an API -- hence the initial focus is around support for the Schema Object as defined by the Open API specification (https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#schema-object).
 
 Currently this is primarily a prototype, which implements the following objects & properties:
 - All native JSON Schema types (object, array, integer, number, string, boolean, and null)
