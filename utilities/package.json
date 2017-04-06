@@ -1,0 +1,50 @@
+{
+  "name": "ibm-igc-x-json_schema-utilities",
+  "version": "0.0.1",
+  "description": "Utilities for making use of the JSON Schema OpenIGC bundle",
+  "main": "./index.js",
+  "files": [
+    "loadJSONSchemaDefinition.js",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "yargs": ">=4.3.1",
+    "prompt": ">=1.0.0",
+    "ibm-iis-commons": ">=0.5.0",
+    "fs-extra": ">=0.30.0",
+    "pretty-data": ">=0.40.0",
+    "ibm-igc-rest": ">=0.5.2",
+    "ibm-igc-extensions": ">=0.2.3",
+    "prompt": ">=1.0.0"
+  },
+  "devDependencies": {
+    "jsdoc": "^3.4.0",
+    "jshint": "^2.9.1",
+    "mocha": "^2.4.5"
+  },
+  "engines": {
+    "node": ">=4.2.4"
+  },
+  "scripts": {
+    "test": "jshint --exclude ./node_modules/",
+    "doc": "jsdoc -c jsdoc/config.json"
+  },
+  "author": {
+    "name": "IBM Corp."
+  },
+  "contributors": [
+    {
+      "name": "Christopher Grote",
+      "email": "chris@thegrotes.net"
+    }
+  ],
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cmgrote/ibm-igc-x-json_schema.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cmgrote/ibm-igc-x-json_schema.git"
+  },
+  "homepage": "https://github.com/cmgrote/ibm-igc-x-json_schema.git"
+}

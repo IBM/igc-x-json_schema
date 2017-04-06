@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ * Copyright 2017 IBM Corp. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+
+ Based on definitions from https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md
+ with the following deviations:
+ - title = name in IGC
+ - description = long_description in IGC
+-->
+<descriptor xmlns="http://www.ibm.com/iis/igc/asset-type-descriptor" bundleId="JSON_Schema">
+  <family position="2" classRefs="JSchema,JSObject,JSArray,JSPrimitive">
+    <label key="family1" inDefaultLocale="JSON Schemas"/>
+  </family>
+  <tree position="3" rootClassRefs="JSchema">
+    <label key="tree1" inDefaultLocale="JSON Schemas"/>
+  </tree>
+  <!-- NOTE: CommonObject is the superclass definition of all the properties any sub-object can have -->
+  <class localId="CommonObject" containerClassRefs="JSchema,JSObject,JSArray,JSPrimitive" dataAccessRole="None" canHaveImage="false">
+    <label key="class.CommonObject" inDefaultLocale="Properties"/>
+    <pluralLabel key="class-plural.CommonObject" inDefaultLocale="Properties"/>
+    <headerSection>
+      <attribute localId="id" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.id" inDefaultLocale="Id" />
+      </attribute>
+      <!-- Per OpenAPI documentation, while this has some pre-known types (int32, binary, etc) it should be open valued (so not enumerating valid values) -->
+      <attribute localId="format" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.format" inDefaultLocale="Format" />
+      </attribute>
+      <attribute localId="default" type="LongText" editable="false" multiValued="false">
+        <label key="attr.Object.default" inDefaultLocale="Default" />
+      </attribute>
+      <attribute localId="enum" type="String" editable="false" multiValued="true">
+        <label key="attr.Object.enum" inDefaultLocale="Enumeration" />
+      </attribute>
+      <attribute localId="readOnly" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.readOnly" inDefaultLocale="Read-Only" />
+      </attribute>
+      <attribute localId="example" type="LongText" editable="false" multiValued="false">
+        <label key="attr.Object.example" inDefaultLocale="Example" />
+      </attribute>
+      <attribute localId="ref" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.ref" inDefaultLocale="Reference to" />
+      </attribute>
+    </headerSection>
+    <section>
+      <!-- https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#xmlObject -->
+      <!--    for these properties, we cannot use the root object in IGC, because it's already used: -->
+      <!--    - name = 'xml_name' in IGC -->
+      <label key="section.Object.XMLDetails" inDefaultLocale="XML Details"/>
+      <attribute localId="xml_name" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.xml_name" inDefaultLocale="Element Name" />
+      </attribute>
+      <attribute localId="xml_namespace" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.xml_namespace" inDefaultLocale="Namespace" />
+      </attribute>
+      <attribute localId="xml_prefix" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.xml_prefix" inDefaultLocale="Prefix" />
+      </attribute>
+      <!-- Should be a boolean, but doing so forces a default "False" to appear in the UI -->
+      <attribute localId="xml_attribute" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.xml_attribute" inDefaultLocale="Attribute" />
+      </attribute>
+      <!-- Should be a boolean, but doing so forces a default "False" to appear in the UI -->
+      <attribute localId="xml_wrapped" type="String" editable="false" multiValued="false">
+        <label key="attr.Object.xml_wrapped" inDefaultLocale="Wrapped" />
+      </attribute>
+    </section>
+  </class>
+  <class localId="JSchema" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
+    <label key="class.JSchema" inDefaultLocale="JSON Schema"/>
+    <pluralLabel key="class-plural.JSchema" inDefaultLocale="JSON Schemas"/>
+    <headerSection>
+      <attribute localId="schema" type="String" editable="false" multiValued="false">
+        <label key="attr.JSchema.schema" inDefaultLocale="Schema" />
+      </attribute>
+    </headerSection>
+  </class>
+  <class localId="JSObject" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
+    <label key="class.JSObject" inDefaultLocale="JSON Object"/>
+    <pluralLabel key="class-plural.JSObject" inDefaultLocale="JSON Objects"/>
+    <headerSection>
+      <attribute localId="discriminator" type="String" editable="false" multiValued="false">
+        <label key="attr.JSObject.discriminator" inDefaultLocale="discriminator" />
+      </attribute>
+      <attribute localId="maxProperties" type="Integer" editable="false" multiValued="false">
+        <label key="attr.JSObject.maxProperties" inDefaultLocale="Maximum Properties" />
+      </attribute>
+      <attribute localId="minProperties" type="Integer" editable="false" multiValued="false">
+        <label key="attr.JSObject.minProperties" inDefaultLocale="Minimum Properties" />
+      </attribute>
+      <attribute localId="required" type="String" editable="false" multiValued="true">
+        <label key="attr.JSObject.required" inDefaultLocale="Required" />
+      </attribute>
+    </headerSection>
+  </class>
+  <class localId="JSPrimitive" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
+    <label key="class.JSPrimitive" inDefaultLocale="JSON Primitive"/>
+    <pluralLabel key="class-plural.JSPrimitive" inDefaultLocale="JSON Primitives"/>
+    <headerSection>
+      <!-- According to specification the type could be an array of values (https://tools.ietf.org/html/draft-fge-json-schema-validation-00) -->
+      <attribute localId="type" type="String" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.type" inDefaultLocale="Type" />
+        <validValue localId="boolean">
+          <label key="enum.type.boolean" inDefaultLocale="boolean" />
+        </validValue>
+        <validValue localId="integer">
+          <label key="enum.type.integer" inDefaultLocale="integer" />
+        </validValue>
+        <validValue localId="number">
+          <label key="enum.type.number" inDefaultLocale="number" />
+        </validValue>
+        <validValue localId="null">
+          <label key="enum.type.null" inDefaultLocale="null" />
+        </validValue>
+        <validValue localId="string">
+          <label key="enum.type.string" inDefaultLocale="string" />
+        </validValue>
+      </attribute>
+    </headerSection>
+    <section>
+      <label key="section.JSPrimitive.NumericDetails" inDefaultLocale="Numeric Details"/>
+      <attribute localId="multipleOf" type="Double" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.multipleOf" inDefaultLocale="Multiple Of" />
+      </attribute>
+      <attribute localId="maximum" type="Double" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.maximum" inDefaultLocale="Maximum" />
+      </attribute>
+      <!-- Should be a boolean, but doing so forces a default "False" to appear in the UI -->
+      <attribute localId="exclusiveMaximum" type="String" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.exclusiveMaximum" inDefaultLocale="Exclusive Maximum" />
+      </attribute>
+      <attribute localId="minimum" type="Double" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.minimum" inDefaultLocale="Minimum" />
+      </attribute>
+      <!-- Should be a boolean, but doing so forces a default "False" to appear in the UI -->
+      <attribute localId="exclusiveMinimum" type="String" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.exclusiveMinimum" inDefaultLocale="Exclusive Minimum" />
+      </attribute>
+    </section>
+    <section>
+      <label key="section.JSPrimitive.StringDetails" inDefaultLocale="String Details"/>
+      <attribute localId="maxLength" type="Integer" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.maxLength" inDefaultLocale="Maximum Length" />
+      </attribute>
+      <attribute localId="minLength" type="Integer" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.minLength" inDefaultLocale="Minimum Length" />
+      </attribute>
+      <attribute localId="pattern" type="String" editable="false" multiValued="false">
+        <label key="attr.JSPrimitive.pattern" inDefaultLocale="Pattern" />
+      </attribute>
+    </section>
+  </class>
+  <class localId="JSArray" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
+    <label key="class.JSArray" inDefaultLocale="JSON Array"/>
+    <pluralLabel key="class-plural.JSArray" inDefaultLocale="JSON Arrays"/>
+    <headerSection>
+      <attribute localId="maxItems" type="Integer" editable="false" multiValued="false">
+        <label key="attr.JSArray.maxItems" inDefaultLocale="Maximum Items" />
+      </attribute>
+      <attribute localId="minItems" type="Integer" editable="false" multiValued="false">
+        <label key="attr.JSArray.minItems" inDefaultLocale="Minimum Items" />
+      </attribute>
+      <!-- Should be a boolean, but doing so forces a default "False" to appear in the UI -->
+      <attribute localId="uniqueItems" type="String" editable="false" multiValued="false">
+        <label key="attr.JSArray.uniqueItems" inDefaultLocale="Unique Items" />
+      </attribute>
+    </headerSection>
+  </class>
+</descriptor>

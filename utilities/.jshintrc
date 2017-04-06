@@ -1,0 +1,13 @@
+{
+	"bitwise": true,
+	"curly": true,
+	"eqeqeq": true,
+	"esversion": 6,
+	"forin": true,
+	"freeze": true,
+	"node": true,
+	"strict": "global",
+	"undef": true,
+	"unused": true,
+	"varstmt": true
+}

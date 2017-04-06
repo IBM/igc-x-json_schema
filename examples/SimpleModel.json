@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/schema#",
+  "id": "https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#simple-model",
+  "title": "SimpleModel",
+  "properties": {
+    "Model": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "$ref": "#/definitions/Address"
+        },
+        "age": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

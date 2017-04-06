@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/schema#",
+  "id": "https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#xml-attribute-prefix-and-namespace",
+  "title": "XMLExample",
+  "properties": {
+    "Person": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32",
+          "xml": {
+            "attribute": true
+          }
+        },
+        "name": {
+          "type": "string",
+          "xml": {
+            "namespace": "http://swagger.io/schema/sample",
+            "prefix": "sample"
+          }
+        }
+      }
+    }
+  }
+}
