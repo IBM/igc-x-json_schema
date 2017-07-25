@@ -223,7 +223,7 @@ function translateToJSONSchema(designColumns) {
     } else {
 
       // Any remaining basic characteristics
-      schema.properties[tblName].properties[colDetails.title].length = colDetails.length;
+      schema.properties[tblName].properties[colDetails.title].maxLength = colDetails.maxLength;
 
       // Translate the type to JSON Schema
       addTypeToJSONSchema(schema.properties[tblName].properties[colDetails.title], colDetails.type);
@@ -293,7 +293,7 @@ function translateColumnToProperty(column) {
 
   jsonCol.title = getNameForObject(column);
   jsonCol.type = column.data_type;
-  jsonCol.length = column.length;
+  jsonCol.maxLength = column.length;
   jsonCol.required = !column.allows_null_values;
   jsonCol.assigned_term_rids = [];
   for (let k = 0; k < column.assigned_to_terms.items.length; k++) {
