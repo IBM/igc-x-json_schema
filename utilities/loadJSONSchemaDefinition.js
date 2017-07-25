@@ -197,7 +197,7 @@ function translateToIGCAssets(schema) {
   ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj);
 
   if (jsSchema.hasOwnProperty('properties')) {
-    translateProperties(jsSchema.properties, '#', 'JSchema', schemaId);
+    translateProperties(jsSchema.properties, '#/definitions', 'JSchema', schemaId);
   }
 
   ah.addImportAction([schemaId], []);
@@ -210,7 +210,7 @@ function translateProperties(properties, parentPath, parentType, parentId) {
   for (let i = 0; i < aTitles.length; i++) {
     const title = aTitles[i];
     if (properties.hasOwnProperty(title)) {
-      translatePropertyKeys(title, parentPath + "/properties", properties[title], parentType, parentId);
+      translatePropertyKeys(title, parentPath, properties[title], parentType, parentId);
     }
   }
 
@@ -255,7 +255,7 @@ function translatePropertyKeys(title, parentPath, propertyObj, parentType, paren
   ah.addAsset('$JSON_Schema-' + propertyTypeIGC, title, propertyId, assetObj, '$' + parentType, parentId);
 
   if (propertyObj.hasOwnProperty('properties')) {
-    translateProperties(propertyObj.properties, path, propertyTypeIGC, propertyId);
+    translateProperties(propertyObj.properties, path + "/properties", propertyTypeIGC, propertyId);
   }
   if (propertyObj.hasOwnProperty('items')) {
     translateArrayItems(propertyObj.items, path, propertyTypeIGC, propertyId);
