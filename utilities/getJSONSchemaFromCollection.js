@@ -73,14 +73,15 @@ const argv = yargs
     .argv;
 
 // Base settings
-const collectionName = argv.name;
+const rootCollectionName = argv.name;
 const outputFile = argv.file;
 
 const envCtx = new commons.EnvironmentContext(null, argv.authfile);
 
 prompt.override = argv;
 
-const hmObjectCache = {};
+const jsonSchema = {};
+const hmDataClassToType = {};
 
 const inputPrompt = {
   properties: {
@@ -96,166 +97,192 @@ prompt.delimiter = "";
 
 prompt.start();
 prompt.get(inputPrompt, function (errPrompt, result) {
-  igcrest.setConnection(envCtx.getRestConnection(result.password, 10));
-  igcrest.disableThrowingErrors();
+  
+  igcrest.setConnection(envCtx.getRestConnection(result.password, 1));
 
-  // Opting for this approach rather than a search to handle collections within collections
-  // (and make the Term translation through its type hierarchy a bit more generic)
-  igcrest.getAssetsInCollection(collectionName, 1000, function(errCollection, resCollection) {
-
-    if (errCollection !== null) {
-      console.error("Unable to retrieve collection: " + errCollection);
-    } else {
-      console.log("Retrieving all objects from collection '" + collectionName + "'...");
-      hmObjectCache[collectionName] = {
-        type: "object",
-        $schema: "http://json-schema.org/schema#",
-        id: collectionName,
-        title: collectionName,
-        properties: {}
-      };
-      translateToJSONSchema(resCollection);
+  console.log("Retrieving all object details from collection '" + rootCollectionName + "'...");
+  igcrest.getAssetsInCollection(rootCollectionName, 1000).then(function(assets) {
+  
+    // Start by getting the name of the single term within the collection -- this should
+    // actually be the name of the top-level schema (not the collection)
+    console.log("Checking collection details...");
+    let termCount = 0;
+    let collectionCount = 0;
+    let rootSchemaName = "";
+    let rootTerm = null;
+    for (let i = 0; i < assets.length; i++) {
+      if (assets[i]._type === "term") {
+        termCount++;
+        rootSchemaName = uppercamelcase(assets[i]._name);
+        rootTerm = assets[i];
+      } else if (assets[i]._type === "collection") {
+        collectionCount++;
+      }
+    }
+  
+    if (collectionCount > 0 && termCount !== 1) {
+      console.error("ERROR: Found one or more sub-collections, but not only a single term -- the root collection must have only a single term.");
+      process.exit(1);
     }
 
+    createSchemaForTerm(rootTerm);
+
+    // The rest need only handle collections (root object's single term handled above)
+    for (let i = 0; i < assets.length; i++) {
+      if (assets[i]._type === "collection") {
+        processNestedCollection(assets[i], jsonSchema[rootSchemaName].properties);
+      }
+    }
+  
   });
 
 });
 
-// Most of the work: the 'assets' is the set of assets within the collection
-function translateToJSONSchema(assets) {
-
-  console.log("... total objects found: " + assets.length);
-
-  // First pass: check contents of the collection -- if there are any sub-collections, there should be 1 (and only 1) term
-  console.log("Checking collection details...");
-  let termCount = 0;
-  let collectionCount = 0;
-  let nameOfContainer = "";
-  for (let i = 0; i < assets.length; i++) {
-    if (assets[i]._type === "term") {
-      termCount++;
-      nameOfContainer = uppercamelcase(assets[i]._name);
-    } else if (assets[i]._type === "collection") {
-      collectionCount++;
-    }
+function processNestedCollection(collection, nestedInSchema) {
+  
+  const collectionName = collection._name;
+  
+  // For nested collections, we should create references to new root-level schema objects
+  // First we'll create the references placeholder
+  const referenceName = uppercamelcase(collectionName);
+  if (!nestedInSchema.hasOwnProperty(referenceName)) {
+    nestedInSchema[referenceName] = {};
+    nestedInSchema[referenceName].type = "object";
+    nestedInSchema[referenceName].oneOf = [];
   }
 
-  if (collectionCount > 0 && termCount !== 1) {
-    console.error("ERROR: Found multiple collections, but not only a single term.");
-  }
+  // Then we'll create the root-level schema objects themselves (for any terms),
+  // and pass along the references placeholder for populating
+  console.log("Retrieving all object details from collection '" + collectionName + "'...");
+  igcrest.getAssetsInCollection(collectionName, 1000).then(function(assets) {
 
-  console.log("Getting term details...");
-  for (let i = 0; i < assets.length; i++) {
-    if (assets[i]._type === "term") {
-      getTermRelationships(assets[i]).then(function(response) {
-        if (!hmObjectCache[collectionName].hasOwnProperty("properties")) {
-          hmObjectCache[collectionName].properties = {};
-        }
-        addPropertiesToCache(response, hmObjectCache[collectionName].properties);
-      }, function(error) {
-        console.error(" ... failed: ", error);
-      });
-    } else if (assets[i]._type === "collection") {
-      getSubObject(assets[i]).then(function(response) {
-        if (!hmObjectCache[collectionName].hasOwnProperty("properties")) {
-          hmObjectCache[collectionName].properties = {};
-        }
-        const subObjName = uppercamelcase(assets[i]._name);
-        if (!hmObjectCache[collectionName].properties.hasOwnProperty(nameOfContainer)) {
-          hmObjectCache[collectionName].properties[nameOfContainer] = {};
-          hmObjectCache[collectionName].properties[nameOfContainer].properties = {};
-        }
-        if (!hmObjectCache[collectionName].properties[nameOfContainer].properties.hasOwnProperty(subObjName)) {
-          hmObjectCache[collectionName].properties[nameOfContainer].properties[subObjName] = {};
-          hmObjectCache[collectionName].properties[nameOfContainer].properties[subObjName].type = "object";
-          hmObjectCache[collectionName].properties[nameOfContainer].properties[subObjName].properties = {};
-        }
-        translateToJSONSchema(response);
-      }, function(error) {
-        console.error(" ... failed: ", error);
-      });
+    for (let i = 0; i < assets.length; i++) {
+      if (assets[i]._type === "term") {
+        createSchemaForTerm(assets[i]);
+        const jsonName = uppercamelcase(assets[i]._name);
+        nestedInSchema[referenceName].oneOf.push({ "$ref": "#/definitions/" + jsonName });
+      } else if (assets[i]._type === "collection") {
+        console.log("Flattening embedded collection '" + assets[i]._name + "' into outer object...");
+        processNestedCollection(assets[i], nestedInSchema);
+      }
     }
+
+  });
+
+}
+
+function createSchemaForTerm(term) {
+
+  const jsonName = uppercamelcase(term._name);
+  if (!jsonSchema.hasOwnProperty(jsonName)) {
+    jsonSchema[jsonName] = {
+      type: "object",
+      $schema: "http://json-schema.org/schema#",
+      id: jsonName,
+      title: jsonName,
+      properties: {}
+    };
+    getTermRelationships(term).then(function(response) {
+      addPropertiesToSchema(response, jsonSchema[jsonName]);
+    }, _logError);
   }
 
 }
 
-function getSubObject(collection) {
-
-  console.log("Retrieving all object details from collection '" + collection._name + "'...");
-  return new Promise(function(resolve, reject) {
-
-    igcrest.getAssetsInCollection(collection._name, 1000, function(errCollection, resCollection) {
-      if (errCollection) {
-        reject(Error(errCollection));
-      } else {
-        resolve(resCollection);
-      }
-    });
-
-  });
-
+function _logError(error) {
+  console.error(" ... failed: ", error);
 }
 
 function getTermRelationships(term) {
 
   console.log("Retrieving all term details for term '" + term._name + "'...");
-  return new Promise(function(resolve, reject) {
+  const properties = [
+    "name",
+    "short_description",
+    "custom_Data Class",
+    "is_a_type_of",
+    "has_types",
+    "has_a",
+    "is_of"
+  ];
 
-    const properties = [
-      "name",
-      "short_description",
-      "custom_Data Class",
-      "is_a_type_of",
-      "has_types",
-      "has_a",
-      "is_of"
-    ];
-
-    igcrest.getAssetPropertiesById(term._id, "term", properties, 1000, true, function(err, res) {
-      if (err !== null) {
-        reject(Error(err));
-      } else {
-        resolve(res);
-      }
-    });
-
-  });
+  return igcrest.getAssetPropertiesById(term._id, "term", properties, 1000, true);
 
 }
 
-function addPropertiesToCache(termDetails, cache) {
+function addPropertiesToSchema(termDetails, schema) {
 
-  const propertyName = uppercamelcase(termDetails._name);
-  if (cache.hasOwnProperty(propertyName)) {
-    console.warn("ERROR: Found the same name '" + propertyName + "' already present!");
-  }
-  cache[propertyName] = {};
-  cache[propertyName].description = termDetails.short_description;
+  schema.description = termDetails.short_description;
+
   if (termDetails.has_a.items.length === 0) {
     getDataTypeFromDataClasses(termDetails._name, termDetails["custom_Data Class"].items).then(function(response) {
-      cache[propertyName].type = response;
+      schema.type = response;
+      delete schema.properties;
       checkAndOutputSchema();
-    }, function(error) {
-      console.error(" ... failed: ", error);
-    });
+    }, _logError);
   } else {
-    console.log(" ... object, recursing on has_a relationships (" + termDetails.has_a.items.length + ") ...");
-    cache[propertyName].type = "object";
-    if (!cache[propertyName].hasOwnProperty("properties")) {
-      cache[propertyName].properties = {};
+    let bInfiniteRecursion = false;
+    for (let i = 0; i < termDetails.has_a.items.length && !bInfiniteRecursion; i++) {
+      const hasaTerm = termDetails.has_a.items[i];
+      bInfiniteRecursion = (hasaTerm._id === termDetails._id);
     }
-    for (let i = 0; i < termDetails.has_a.items.length; i++) {
-      getTermRelationships(termDetails.has_a.items[i]).then(function(response) {
-        addPropertiesToCache(response, cache[propertyName].properties);
-      }, function(error) {
-        console.error(" ... failed: ", error);
-      });
+    if (bInfiniteRecursion) {
+      console.log(" ... object embeds itself (infinite recursion) -- skipping: " + termDetails._name);
+      // TODO: trace down data class still -- don't just hard-code to string?
+      schema.type = "string";
+      delete schema.properties;
+    } else {
+      for (let i = 0; i < termDetails.has_a.items.length; i++) {
+        getTermRelationships(termDetails.has_a.items[i]).then(function(response) {
+          addPropertiesToObject(response, schema.properties);
+        }, _logError);
+      }
     }
   }
 
 }
 
-function getDataTypeFromDataClasses(termName, classes, cache) {
+function addPropertiesToObject(termDetails, schema) {
+
+  const propertyName = uppercamelcase(termDetails._name);
+  if (schema.hasOwnProperty(propertyName)) {
+    console.warn("ERROR: Found the same name '" + propertyName + "' already present!");
+  }
+  schema[propertyName] = {};
+  schema[propertyName].description = termDetails.short_description;
+  if (termDetails.has_a.items.length === 0) {
+    getDataTypeFromDataClasses(termDetails._name, termDetails["custom_Data Class"].items).then(function(response) {
+      schema[propertyName].type = response;
+      checkAndOutputSchema();
+    }, _logError);
+  } else {
+    console.log(" ... object, recursing on has_a relationships (" + termDetails.has_a.items.length + ") ...");
+    schema[propertyName].type = "object";
+    if (!schema[propertyName].hasOwnProperty("properties")) {
+      schema[propertyName].properties = {};
+    }
+    let bInfiniteRecursion = false;
+    for (let i = 0; i < termDetails.has_a.items.length && !bInfiniteRecursion; i++) {
+      const hasaTerm = termDetails.has_a.items[i];
+      bInfiniteRecursion = (hasaTerm._id === termDetails._id);
+    }
+    if (bInfiniteRecursion) {
+      console.log(" ... object embeds itself (infinite recursion) -- skipping: " + termDetails._name);
+      // TODO: trace down data class still -- don't just hard-code to string?
+      schema[propertyName].type = "string";
+      delete schema[propertyName].properties;
+    } else {
+      for (let i = 0; i < termDetails.has_a.items.length; i++) {
+        getTermRelationships(termDetails.has_a.items[i]).then(function(response) {
+          addPropertiesToObject(response, schema[propertyName].properties);
+        }, _logError);
+      }
+    }
+  }
+
+}
+
+function getDataTypeFromDataClasses(termName, classes) {
 
   console.log("Retrieving data type for term '" + termName + "'...");
   return new Promise(function(resolve, reject) {
@@ -266,23 +293,35 @@ function getDataTypeFromDataClasses(termName, classes, cache) {
     } else {
       let type = "";
       for (let i = 0; i < classes.length; i++) {
-        const properties = [
-          "name",
-          "data_type_filter_elements_enum"
-        ];
-        // If the type is not already super-generic (string), look for a data type
-        if (type !== "string") {
-          igcrest.getAssetPropertiesById(classes[i]._id, "data_class", properties, 1, false, function(err, res) {
-            console.log(" ... found data type(s): " + res.data_type_filter_elements_enum);
-            if (res.data_type_filter_elements_enum.length > 1) {
-              // If the possible types are defined by an array with more than one value, it must be a string to cover all possibilities...
-              type = "string";
-            } else {
-              type = res.data_type_filter_elements_enum[0];
-            }
-            console.log(" ... setting type = " + type);
-            resolve(type);
-          });
+        const classId = classes[i]._id;
+        // If the type is already super-generic (string), just resolve straight away
+        if (type === "string") {
+          resolve("string");
+        } else {
+          // If we've looked it up before, just use the cached type -- don't look it up again
+          if (hmDataClassToType.hasOwnProperty(classId)) {
+            type = hmDataClassToType[classId];
+          } else {
+            // If the type is not already cached, look for a data type
+            const properties = [
+              "name",
+              "data_type_filter_elements_enum"
+            ];
+            igcrest.getAssetPropertiesById(classId, "data_class", properties, 1, false).then(function(res) {
+              console.log(" ... found data type(s): " + res.data_type_filter_elements_enum);
+              if (res.data_type_filter_elements_enum.length > 1) {
+                // If the possible types are defined by an array with more than one value, it must be a string to cover all possibilities...
+                type = "string";
+              } else {
+                type = res.data_type_filter_elements_enum[0];
+              }
+              hmDataClassToType[classId] = type;
+              console.log(" ... setting (and caching) type = " + type);
+              resolve(type);
+            }, function(err) {
+              reject(Error(err));
+            });
+          }
         }
       }
     }
@@ -299,6 +338,6 @@ function checkAndOutputSchema() {
     "mode": 0o644,
     "flag": 'w'
   };
-  fs.writeFileSync(outputFile, pd.json(hmObjectCache), options);
+  fs.writeFileSync(outputFile, pd.json(jsonSchema), options);
 
 }
