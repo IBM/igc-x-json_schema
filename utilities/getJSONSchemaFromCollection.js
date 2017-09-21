@@ -81,7 +81,7 @@ const envCtx = new commons.EnvironmentContext(null, argv.authfile);
 prompt.override = argv;
 
 const jsonSchema = {};
-const hmDataClassToType = {};
+const hmDataClassToTypes = {};
 
 const inputPrompt = {
   properties: {
@@ -105,7 +105,6 @@ prompt.get(inputPrompt, function (errPrompt, result) {
   
     // Start by getting the name of the single term within the collection -- this should
     // actually be the name of the top-level schema (not the collection)
-    console.log("Checking collection details...");
     let termCount = 0;
     let collectionCount = 0;
     let rootSchemaName = "";
@@ -176,14 +175,14 @@ function createSchemaForTerm(term) {
   const jsonName = uppercamelcase(term._name);
   if (!jsonSchema.hasOwnProperty(jsonName)) {
     jsonSchema[jsonName] = {
-      type: "object",
       $schema: "http://json-schema.org/schema#",
       id: jsonName,
       title: jsonName,
+      type: "object",
       properties: {}
     };
-    getTermRelationships(term).then(function(response) {
-      addPropertiesToSchema(response, jsonSchema[jsonName]);
+    getTermDetails(term).then(function(response) {
+      addProperties(response, jsonSchema[jsonName]);
     }, _logError);
   }
 
@@ -193,7 +192,7 @@ function _logError(error) {
   console.error(" ... failed: ", error);
 }
 
-function getTermRelationships(term) {
+function getTermDetails(term) {
 
   console.log("Retrieving all term details for term '" + term._name + "'...");
   const properties = [
@@ -210,13 +209,13 @@ function getTermRelationships(term) {
 
 }
 
-function addPropertiesToSchema(termDetails, schema) {
+function addProperties(termDetails, schema) {
 
   schema.description = termDetails.short_description;
 
   if (termDetails.has_a.items.length === 0) {
-    getDataTypeFromDataClasses(termDetails._name, termDetails["custom_Data Class"].items).then(function(response) {
-      schema.type = response;
+    getDataTypeFromDataClasses(termDetails["custom_Data Class"].items).then(function(type) {
+      setJSONSchemaTypeFromIGCType(schema, type);
       delete schema.properties;
       checkAndOutputSchema();
     }, _logError);
@@ -228,13 +227,24 @@ function addPropertiesToSchema(termDetails, schema) {
     }
     if (bInfiniteRecursion) {
       console.log(" ... object embeds itself (infinite recursion) -- skipping: " + termDetails._name);
-      // TODO: trace down data class still -- don't just hard-code to string?
-      schema.type = "string";
-      delete schema.properties;
+      getDataTypeFromDataClasses(termDetails["custom_Data Class"].items).then(function(type) {
+        setJSONSchemaTypeFromIGCType(schema, type);
+        delete schema.properties;
+        checkAndOutputSchema();
+      }, _logError);
     } else {
+      schema.type = "object";
+      if (!schema.hasOwnProperty("properties")) {
+        schema.properties = {};
+      }
       for (let i = 0; i < termDetails.has_a.items.length; i++) {
-        getTermRelationships(termDetails.has_a.items[i]).then(function(response) {
-          addPropertiesToObject(response, schema.properties);
+        getTermDetails(termDetails.has_a.items[i]).then(function(response) {
+          const propertyName = uppercamelcase(response._name);
+          if (schema.properties.hasOwnProperty(propertyName)) {
+            console.warn("ERROR: Found the same name '" + propertyName + "' already present!");
+          }
+          schema.properties[propertyName] = {};
+          addProperties(response, schema.properties[propertyName]);
         }, _logError);
       }
     }
@@ -242,92 +252,94 @@ function addPropertiesToSchema(termDetails, schema) {
 
 }
 
-function addPropertiesToObject(termDetails, schema) {
+function getDataTypeFromDataClasses(classes) {
 
-  const propertyName = uppercamelcase(termDetails._name);
-  if (schema.hasOwnProperty(propertyName)) {
-    console.warn("ERROR: Found the same name '" + propertyName + "' already present!");
-  }
-  schema[propertyName] = {};
-  schema[propertyName].description = termDetails.short_description;
-  if (termDetails.has_a.items.length === 0) {
-    getDataTypeFromDataClasses(termDetails._name, termDetails["custom_Data Class"].items).then(function(response) {
-      schema[propertyName].type = response;
-      checkAndOutputSchema();
-    }, _logError);
-  } else {
-    console.log(" ... object, recursing on has_a relationships (" + termDetails.has_a.items.length + ") ...");
-    schema[propertyName].type = "object";
-    if (!schema[propertyName].hasOwnProperty("properties")) {
-      schema[propertyName].properties = {};
-    }
-    let bInfiniteRecursion = false;
-    for (let i = 0; i < termDetails.has_a.items.length && !bInfiniteRecursion; i++) {
-      const hasaTerm = termDetails.has_a.items[i];
-      bInfiniteRecursion = (hasaTerm._id === termDetails._id);
-    }
-    if (bInfiniteRecursion) {
-      console.log(" ... object embeds itself (infinite recursion) -- skipping: " + termDetails._name);
-      // TODO: trace down data class still -- don't just hard-code to string?
-      schema[propertyName].type = "string";
-      delete schema[propertyName].properties;
-    } else {
-      for (let i = 0; i < termDetails.has_a.items.length; i++) {
-        getTermRelationships(termDetails.has_a.items[i]).then(function(response) {
-          addPropertiesToObject(response, schema[propertyName].properties);
-        }, _logError);
-      }
-    }
-  }
-
-}
-
-function getDataTypeFromDataClasses(termName, classes) {
-
-  console.log("Retrieving data type for term '" + termName + "'...");
   return new Promise(function(resolve, reject) {
 
     if (classes.length === 0) {
-      console.log(" ... no data type found -- defaulting type to string...");
+      // No data type found -- default to string
       resolve("string");
     } else {
-      let type = "";
+
+      // See if we have already cached all the class types
+      let bAllCached = true;
+      const classRIDs = [];
+      let classTypes = [];
       for (let i = 0; i < classes.length; i++) {
         const classId = classes[i]._id;
-        // If the type is already super-generic (string), just resolve straight away
-        if (type === "string") {
-          resolve("string");
+        classRIDs.push(classId);
+        if (hmDataClassToTypes.hasOwnProperty(classId)) {
+          classTypes = classTypes.concat(hmDataClassToTypes[classId]);
         } else {
-          // If we've looked it up before, just use the cached type -- don't look it up again
-          if (hmDataClassToType.hasOwnProperty(classId)) {
-            type = hmDataClassToType[classId];
-          } else {
-            // If the type is not already cached, look for a data type
-            const properties = [
-              "name",
-              "data_type_filter_elements_enum"
-            ];
-            igcrest.getAssetPropertiesById(classId, "data_class", properties, 1, false).then(function(res) {
-              console.log(" ... found data type(s): " + res.data_type_filter_elements_enum);
-              if (res.data_type_filter_elements_enum.length > 1) {
-                // If the possible types are defined by an array with more than one value, it must be a string to cover all possibilities...
-                type = "string";
-              } else {
-                type = res.data_type_filter_elements_enum[0];
-              }
-              hmDataClassToType[classId] = type;
-              console.log(" ... setting (and caching) type = " + type);
-              resolve(type);
-            }, function(err) {
-              reject(Error(err));
-            });
-          }
+          bAllCached = false;
         }
       }
+
+      if (!bAllCached) {
+        // Retrieve all the class types in one query...
+        const jsonQ = {
+          "properties": [
+            "name",
+            "data_type_filter_elements_enum"
+          ],
+          "types": ["data_class"],
+          "where": {
+            "operator": "or",
+            "conditions": []
+          },
+          "pageSize": classRIDs.length
+        };
+        for (let j = 0; j < classRIDs.length; j++) {
+          jsonQ.where.conditions.push({
+            "property": "_id",
+            "operator": "=",
+            "value": classRIDs[j]
+          });
+        }
+        igcrest.search(jsonQ).then(function(res) {
+          for (let j = 0; j < res.items.length; j++) {
+            const rid  = res.items[j]._id;
+            const type = res.items[j].data_type_filter_elements_enum;
+            classTypes = classTypes.concat(type);
+            hmDataClassToTypes[rid] = type;
+          }
+          resolve(getSingularDataType(classTypes));
+        }, function(err) {
+          reject(Error(err));
+        });
+      } else {
+        resolve(getSingularDataType(classTypes));
+      }
+
     }
 
   });
 
+}
+
+function getSingularDataType(typeArray) {
+  let type = "string";
+  if (typeArray.every(elementTheSame)) {
+    // If all the types are the same just take the first one; in any other scenario we need to use 'string' to be appropriately generic
+    type = typeArray[0];
+  }
+  return type;
+}
+
+function elementTheSame(element, index, array) {
+  return (element === array[0]);
+}
+
+function setJSONSchemaTypeFromIGCType(schema, type) {
+  if (type === "date") {
+    schema.type   = "string";
+    schema.format = "date";
+  } else if (type === "timestamp") {
+    schema.type = "string";
+    schema.format = "date-time";
+  } else {
+    schema.type = type;
+  }
 }
 
 function checkAndOutputSchema() {
