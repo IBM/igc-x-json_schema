@@ -65,7 +65,7 @@ const envCtx = new commons.EnvironmentContext(null, argv.authfile);
 prompt.override = argv;
 
 const maxRelatedTerms = 1000;
-//const hmRidToObjectId = {};
+const cardinalityCA = "custom_Can be Multiple";
 const hmRidToObject = {};
 const hmProcessedRIDs = {};
 const hmNameClashCheck = {};
@@ -80,7 +80,8 @@ const termProperties = [
   "is_of",
   "has_a",
   "assigned_terms",
-  "assigned_to_terms"
+  "assigned_to_terms",
+  cardinalityCA
 ];
 
 // All the terms that
@@ -150,7 +151,6 @@ prompt.get(inputPrompt, function (errPrompt, result) {
             const path = getDefnPathFromCategoryPath(allTerms[i].category_path);
             const rid  = allTerms[i]._id;
             const name = formatNameForJSON(allTerms[i]._name);
-            //hmRidToObjectId[rid] = argv.namespace + path + "/" + name;
             hmRidToObject[rid] = allTerms[i];
             hmRidToObject[rid].jsonSchemaId = argv.namespace + path + "/" + name;
             // TODO: confirm how we distinguish terms that purely define relationships
@@ -235,7 +235,6 @@ function defineSchemaForTerm(term) {
     }
     hmNameClashCheck[name] = true;
     hmProcessedRIDs[rid] = true;
-    //hmRidToObjectId[rid] = schema.id;
   
     // Type determination
     if (term.has_a.items.length > 0) {
@@ -247,9 +246,20 @@ function defineSchemaForTerm(term) {
       schema.type = "object"
       schema.properties = {};
       for (let i = 0; i < term.has_a.items.length; i++) {
-        const rid  = term.has_a.items[i]._id;
-        const name = formatNameForJSON(term.has_a.items[i]._name);
-        schema.properties[name] = { "$ref": getTermRefFromCache(rid) };
+        const rRid  = term.has_a.items[i]._id;
+        const rName = formatNameForJSON(term.has_a.items[i]._name);
+        const rObj  = hmRidToObject[rRid];
+        if (rObj.hasOwnProperty(cardinalityCA)
+            && rObj[cardinalityCA] === "yes") {
+          schema.properties[rName] = {
+            "type": "array",
+            "items": {
+              "$ref": getTermRefFromCache(rRid)
+            }
+          };
+        } else {
+          schema.properties[rName] = { "$ref": getTermRefFromCache(rRid) };
+        }
       }
     } else if (term.has_types.items.length > 0) {
       // if it "has types" then it is an enum
