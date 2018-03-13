@@ -64,6 +64,7 @@ const envCtx = new commons.EnvironmentContext(null, argv.authfile);
 
 prompt.override = argv;
 
+// Parameters and caches
 const maxRelatedTerms = 1000;
 const cardinalityCA = "custom_Can be Multiple";
 const hmRidToObject = {};
@@ -71,12 +72,14 @@ const hmProcessedRIDs = {};
 const hmNameClashCheck = {};
 const hmTermToType = {};
 
+// All the characteristics we need to investigate on terms
 const termProperties = [
   "name",
   "category_path",
   "short_description",
   "long_description",
   "has_types",
+  "is_a_type_of",
   "is_of",
   "has_a",
   "assigned_terms",
@@ -86,7 +89,7 @@ const termProperties = [
 
 // All the terms that
 // - have at least one "assigned terms" relationships to other terms
-// are relationship bridges
+// are relationship bridges (?)
 const aRelationTerms = [];
 
 const inputPrompt = {
@@ -114,8 +117,9 @@ prompt.get(inputPrompt, function (errPrompt, result) {
         // get data type from data class definition
         const types = allDCs[i].data_type_filter_elements_enum;
         for (let j = 0; j < allDCs[i].assigned_to_terms.length; j++) {
-          // a term could be assigned multiple data classes, so we need to
-          // check and merge data types that might have previously been set
+          // a term could be assigned multiple data classes, and actually each
+          // data class could have multiple data types defined, so we need to
+          // check and merge data types
           const ridTerm = allDCs[i].assigned_to_terms[j]._id;
           if (hmTermToType.hasOwnProperty(ridTerm)) {
             hmTermToType[ridTerm] = mergeTypes(types.push(hmTermToType[ridTerm]));
@@ -125,11 +129,14 @@ prompt.get(inputPrompt, function (errPrompt, result) {
         }
       }
 
+      // By default, we'll grab all terms in the environment
       let qTerms = {
         "properties": termProperties,
         "types": ["term"],
         "pageSize": 100
       }
+      // ... unless we've been invoked with a RID limiting the 
+      // category under which to retrieve terms (then we'll limit)
       if (argv.limit !== null && argv.limit !== "") {
         qTerms.where = {
           "conditions": [{
@@ -146,6 +153,8 @@ prompt.get(inputPrompt, function (errPrompt, result) {
       igcrest.search(qTerms).then(function(res) {
 
         igcrest.getAllPages(res.items, res.paging).then(function(allTerms) {
+          // Start by caching all information for all the terms we retrieved
+          // (avoids repeatedly looking up again via REST)
           console.log("  a) cache rids-to-names, leaves, and relations");
           for (let i = 0; i < allTerms.length; i++) {
             const path = getDefnPathFromCategoryPath(allTerms[i].category_path);
@@ -156,6 +165,7 @@ prompt.get(inputPrompt, function (errPrompt, result) {
             // TODO: confirm how we distinguish terms that purely define relationships
             // rather than some form of object / containment (or keep these as entirely
             // independent objects and don't handle them in any special way?)
+            // For now assuming its any term with "assigned_terms" relationships...
             if (allTerms[i].assigned_terms.items.length > 0) {
               aRelationTerms.push(rid);
             }
@@ -163,11 +173,15 @@ prompt.get(inputPrompt, function (errPrompt, result) {
           const aTerms = Object.keys(hmRidToObject);
           console.log("     total terms found = " + aTerms.length);
           console.log("     rel'n terms found = " + aRelationTerms.length);
+          // Create (and output) a JSON Schema object for every non-relationship term
           console.log("  b) process all non-relationship terms");
           for (let i = 0; i < aTerms.length; i++) {
             const rid = aTerms[i];
             defineSchemaForTerm(hmRidToObject[rid]);
           }
+          // Don't output the relationships as JSON Schema objects themselves, instead
+          // process them to embed their information in the objects that they are inter-
+          // relating
           console.log("  c) add the relations");
           for (let i = 0; i < aRelationTerms.length; i++) {
             linkTermsViaRelation(hmRidToObject[ aRelationTerms[i] ]);
@@ -197,22 +211,18 @@ function elementTheSame(element, index, array) {
   return (element === array[0]);
 }
 
+// Retrieve the fully-qualified "ID" to which we can resolve
+// a term (the value for a $ref key in JSON Schema)
 function getTermRefFromCache(rid) {
   if (hmRidToObject.hasOwnProperty(rid)) {
     return hmRidToObject[rid].jsonSchemaId;
   } else {
+    console.log("ERROR: Unable to find in cache -- " + rid);
     return null;
   }
 }
 
-function getTermDetails(rid) {
-
-  if (!hmProcessedRIDs.hasOwnProperty(rid)) {
-    defineSchemaForTerm(hmRidToObject[rid]);
-  }
-
-}
-
+// Actually construct a full JSON Schema object for the provided term
 function defineSchemaForTerm(term) {
   
   const schema = {
@@ -245,12 +255,14 @@ function defineSchemaForTerm(term) {
       //  detailed objects that get created for each type])
       schema.type = "object"
       schema.properties = {};
+      // Create a property for each "has a" related term
       for (let i = 0; i < term.has_a.items.length; i++) {
         const rRid  = term.has_a.items[i]._id;
         const rName = formatNameForJSON(term.has_a.items[i]._name);
         const rObj  = hmRidToObject[rRid];
-        if (rObj.hasOwnProperty(cardinalityCA)
-            && rObj[cardinalityCA] === "yes") {
+        // Check if the "has a" related term has multiple cardinality
+        // (if so create an array out of it, otherwise leave it singular)
+        if (rObj.hasOwnProperty(cardinalityCA) && rObj[cardinalityCA] === "yes") {
           schema.properties[rName] = {
             "type": "array",
             "items": {
@@ -263,6 +275,7 @@ function defineSchemaForTerm(term) {
       }
     } else if (term.has_types.items.length > 0) {
       // if it "has types" then it is an enum
+      // (so include the types as valid values in an enum)
       schema.enum = [];
       for (let i = 0; i < term.has_types.items.length; i++) {
         schema.enum.push(term.has_types.items[i]._name);
@@ -272,13 +285,14 @@ function defineSchemaForTerm(term) {
       if (hmTermToType.hasOwnProperty(rid)) {
         setJSONSchemaTypeFromIGCType(schema, hmTermToType[rid]);
       } else {
-        // catch-all -- in case it has not been associated with
+        // catch-all -- in case the term has not been associated with
         // a data class, it will default to "string" as lowest common denominator
         setJSONSchemaTypeFromIGCType(schema, "string");
       }
     }
   
-/*    // TODO: [ "assigned_terms", "assigned_to_terms" ]
+/*    // If we want to try to embed relationship processing directly in this step,
+    // below might be a starter...
     if (term.assigned_to_terms.items.length > 0) {
       for (let i = 0; i < term.assigned_to_terms.items.length; i++) {
         const rid  = term.assigned_to_terms.items[i]._id;
@@ -311,6 +325,8 @@ function defineSchemaForTerm(term) {
 
 }
 
+// Determines what relationship information to embed in other schemas for the
+// "associative" (purely relationship / linking) terms
 function linkTermsViaRelation(relation) {
 
   const path = getDefnPathFromCategoryPath(relation.category_path);
@@ -336,7 +352,6 @@ function linkTermsViaRelation(relation) {
     const rtName = formatNameForJSON(relation.assigned_terms.items[i]._name);
     if (!hmProcessedRIDs.hasOwnProperty(rtRid)) {
       console.log(" ... WARNING: unable to find a previously processed schema for " + rtName + " (" + rtRid + ") while processing relation " + schemaId + " (" + rid + ")");
-      //getTermDetails(rtRid);
     } else {
       hmRelatedRidsToObjectIds[rtRid] = hmRidToObject[rtRid].jsonSchemaId;
     }
@@ -383,6 +398,30 @@ function linkTermsViaRelation(relation) {
     outputSchema(schUpdate);
   }
 
+}
+
+// Walks up the inheritance chain so that we know all RIDs from which
+// the provided Term inherits
+function getAncestralTerms(term) {
+  let aTerms = [];
+  for (let i = 0; i < term.is_a_type_of.items.length; i++) {
+    const pRid = term.is_a_type_of[i]._id;
+    aTerms.push(pRid);
+    aTerms = aTerms.concat(getAncestralTerms(hmRidToObject[pRid]));
+  }
+  return aTerms;
+}
+
+// Walks down the inheritance chain so that we know all RIDs which
+// inherit from (are derived from) the provided Term
+function getOffspringTerms(term) {
+  let aTerms = [];
+  for (let i = 0; i < term.has_types.items.length; i++) {
+    const cRid = term.has_types[i]._id;
+    aTerms.push(cRid);
+    aTerms = aTerms.concat(getOffspringTerms(hmRidToObject[cRid]));
+  }
+  return aTerms;
 }
 
 function getDefnPathFromCategoryPath(pathObj) {
