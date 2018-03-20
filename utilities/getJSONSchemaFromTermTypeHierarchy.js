@@ -165,7 +165,7 @@ prompt.get(inputPrompt, function (errPrompt, result) {
             // TODO: confirm how we distinguish terms that purely define relationships
             // rather than some form of object / containment (or keep these as entirely
             // independent objects and don't handle them in any special way?)
-            // For now assuming its any term with "assigned_terms" relationships...
+            // For now assuming it's any term with "assigned_terms" relationships...
             if (allTerms[i].assigned_terms.items.length > 0) {
               aRelationTerms.push(rid);
             }
@@ -291,6 +291,9 @@ function defineSchemaForTerm(term) {
       }
     }
   
+    if (term.assigned_terms.items.length > 0) {
+      schema['x-relation-object'] = true;
+    }
 /*    // If we want to try to embed relationship processing directly in this step,
     // below might be a starter...
     if (term.assigned_to_terms.items.length > 0) {
@@ -329,73 +332,99 @@ function defineSchemaForTerm(term) {
 // "associative" (purely relationship / linking) terms
 function linkTermsViaRelation(relation) {
 
-  const path = getDefnPathFromCategoryPath(relation.category_path);
-  const rid  = relation._id;
-  const name = formatNameForJSON(relation._name);
+  const relnPath = getDefnPathFromCategoryPath(relation.category_path);
+  const relnRid  = relation._id;
+  const relnName = formatNameForJSON(relation._name);
 
-  const schemaId = argv.namespace + path + "/" + name;
+  const relnSchId = argv.namespace + relnPath + "/" + relnName;
 
   let schRelation = {};
 
   // If it has already been processed, the relationship itself has some of 
   // its own attributes ("has a" relationships), which we should include as 
   // part of configuring the relationship within the other object(s)
-  if (hmProcessedRIDs.hasOwnProperty(rid)) {
-    schRelation = readSchema(schemaId);
+  if (hmProcessedRIDs.hasOwnProperty(relnRid)) {
+    schRelation = readSchema(relnSchId);
   }
   // Otherwise, the relationship has no attributes of its own, and should
   // presumably just setup a relationship between the objects
 
+  // First pass we'll get a list of all of the names for the "assigned_terms"
+  // in the relationship object
   const hmRelatedRidsToObjectIds = {};
   for (let i = 0; i < relation.assigned_terms.items.length; i++) {
     const rtRid  = relation.assigned_terms.items[i]._id;
     const rtName = formatNameForJSON(relation.assigned_terms.items[i]._name);
     if (!hmProcessedRIDs.hasOwnProperty(rtRid)) {
-      console.log(" ... WARNING: unable to find a previously processed schema for " + rtName + " (" + rtRid + ") while processing relation " + schemaId + " (" + rid + ")");
+      console.log(" ... WARNING: unable to find a previously processed schema for " + rtName + " (" + rtRid + ") while processing relation " + relnSchId + " (" + relnRid + ")");
     } else {
       hmRelatedRidsToObjectIds[rtRid] = hmRidToObject[rtRid].jsonSchemaId;
     }
   }
 
+  // Then we'll iterate through all of the RIDs for these "assigned_terms" to:
+  // - create a new relationship property on each of the terms
+  // - add each as a "$ref" within that relationship property each of the other
+  //   terms
   const aRids = Object.keys(hmRelatedRidsToObjectIds);
   for (let j = 0; j < aRids.length; j++) {
+
     const rtRid     = aRids[j];
     const rtObjId   = hmRelatedRidsToObjectIds[rtRid];
     const schUpdate = readSchema(rtObjId);
+
     let bContinue   = true;
     if (!schUpdate.hasOwnProperty("properties")) {
-      console.log(" ... WARNING: schema was not an object " + rtObjId + " while processing relation " + schemaId + " (" + rid + ") -- forcing its addition");
+      // If the term we need to update is not already an object, we need to force it
+      // into being one (so that we can add these relationships to it)
+      console.log(" ... WARNING: schema was not an object " + rtObjId + " while processing relation " + relnSchId + " (" + relnRid + ") -- forcing its addition");
       schUpdate.type = "object"
       schUpdate.properties = {};
-      schUpdate.properties[name] = {
+      schUpdate.properties[relnName] = {
         "type": "object",
         "properties": {}
       };
+      // Add any existing attributes of the relationship itself to the properties
+      // on the term
       if (schRelation.hasOwnProperty("properties")) {
-        schUpdate.properties[name].properties = schRelation.properties;
+        schUpdate.properties[relnName].properties = JSON.parse(JSON.stringify(schRelation.properties));
       }
-    } else if (!schUpdate.properties.hasOwnProperty(name)) {
-      schUpdate.properties[name] = {
+    } else if (!schUpdate.properties.hasOwnProperty(relnName)) {
+      // Otherwise if the term is already an object but does not yet have any
+      // property defined for this relationship, we need to add the relationship property
+      schUpdate.properties[relnName] = {
         "type": "object",
         "properties": {}
       };
+      // Add any existing attributes of the relationship itself to the properties
+      // on the term
       if (schRelation.hasOwnProperty("properties")) {
-        schUpdate.properties[name].properties = schRelation.properties;
+        schUpdate.properties[relnName].properties = JSON.parse(JSON.stringify(schRelation.properties));
       }
     } else {
-      console.log(" ... WARNING: schema (" + rtObjId + ") already has a property for relationship " + name + " while processing relation " + schemaId + " (" + rid + ") -- skipping");
-      console.log("     " + JSON.stringify(schUpdate.properties[name]));
+      // Finally, if the term already has a property defined for this relationship
+      // then it isn't clear what we should do -- so we'll skip over clobbering it
+      console.log(" ... WARNING: schema (" + rtObjId + ") already has a property for relationship " + relnName + " while processing relation " + relnSchId + " (" + relnRid + ") -- skipping");
+      console.log("     " + JSON.stringify(schUpdate.properties[relnName]));
       bContinue = false;
     }
+
+    // We then need to iterate again through all of the "assigned_terms"
+    // and add a "$ref" for each one that is not self-referencing the term in which
+    // we've placed the new relationship property
+    const aInheritedTermRids = getAncestralTerms(hmRidToObject[rtRid]);
+    aInheritedTermRids.push(rtRid);
     for (let k = 0; k < aRids.length && bContinue; k++) {
       const otherRid = aRids[k];
-      if (rtRid !== otherRid) {
+      if (aInheritedTermRids.indexOf(otherRid) === -1) {
         const otherObjId   = hmRelatedRidsToObjectIds[otherRid];
         const otherObjName = otherObjId.split(/[\\/]/).pop();
-        schUpdate.properties[name].properties[otherObjName] = { "$ref": otherObjId };
+        schUpdate.properties[relnName].properties[otherObjName] = { "$ref": otherObjId };
       }
     }
+
     outputSchema(schUpdate);
+
   }
 
 }
@@ -405,7 +434,7 @@ function linkTermsViaRelation(relation) {
 function getAncestralTerms(term) {
   let aTerms = [];
   for (let i = 0; i < term.is_a_type_of.items.length; i++) {
-    const pRid = term.is_a_type_of[i]._id;
+    const pRid = term.is_a_type_of.items[i]._id;
     aTerms.push(pRid);
     aTerms = aTerms.concat(getAncestralTerms(hmRidToObject[pRid]));
   }
@@ -417,7 +446,7 @@ function getAncestralTerms(term) {
 function getOffspringTerms(term) {
   let aTerms = [];
   for (let i = 0; i < term.has_types.items.length; i++) {
-    const cRid = term.has_types[i]._id;
+    const cRid = term.has_types.items[i]._id;
     aTerms.push(cRid);
     aTerms = aTerms.concat(getOffspringTerms(hmRidToObject[cRid]));
   }
