@@ -177,14 +177,17 @@ prompt.get(inputPrompt, function (errPrompt, result) {
           console.log("  b) process all non-relationship terms");
           for (let i = 0; i < aTerms.length; i++) {
             const rid = aTerms[i];
-            defineSchemaForTerm(hmRidToObject[rid]);
+            defineSchemaForTerm(getTermFromCache(rid));
           }
           // Don't output the relationships as JSON Schema objects themselves, instead
           // process them to embed their information in the objects that they are inter-
           // relating
           console.log("  c) add the relations");
           for (let i = 0; i < aRelationTerms.length; i++) {
-            linkTermsViaRelation(hmRidToObject[ aRelationTerms[i] ]);
+            const relatedTerm = getTermFromCache(aRelationTerms[i]);
+            if (relatedTerm !== null) {
+              linkTermsViaRelation(relatedTerm);
+            }
           }
 
         });
@@ -214,8 +217,18 @@ function elementTheSame(element, index, array) {
 // Retrieve the fully-qualified "ID" to which we can resolve
 // a term (the value for a $ref key in JSON Schema)
 function getTermRefFromCache(rid) {
+  const term = getTermFromCache(rid);
+  if (term !== null) {
+    return term.jsonSchemaId;
+  } else {
+    return null;
+  }
+}
+
+// Retrieve a term object from the cache, by RID
+function getTermFromCache(rid) {
   if (hmRidToObject.hasOwnProperty(rid)) {
-    return hmRidToObject[rid].jsonSchemaId;
+    return hmRidToObject[rid];
   } else {
     console.log("ERROR: Unable to find in cache -- " + rid);
     return null;
@@ -259,10 +272,10 @@ function defineSchemaForTerm(term) {
       for (let i = 0; i < term.has_a.items.length; i++) {
         const rRid  = term.has_a.items[i]._id;
         const rName = formatNameForJSON(term.has_a.items[i]._name);
-        const rObj  = hmRidToObject[rRid];
+        const rObj  = getTermFromCache(rRid);
         // Check if the "has a" related term has multiple cardinality
         // (if so create an array out of it, otherwise leave it singular)
-        if (rObj.hasOwnProperty(cardinalityCA) && rObj[cardinalityCA] === "yes") {
+        if (rObj !== null && rObj.hasOwnProperty(cardinalityCA) && rObj[cardinalityCA] === "yes") {
           schema.properties[rName] = {
             "type": "array",
             "items": {
@@ -358,7 +371,7 @@ function linkTermsViaRelation(relation) {
     if (!hmProcessedRIDs.hasOwnProperty(rtRid)) {
       console.log(" ... WARNING: unable to find a previously processed schema for " + rtName + " (" + rtRid + ") while processing relation " + relnSchId + " (" + relnRid + ")");
     } else {
-      hmRelatedRidsToObjectIds[rtRid] = hmRidToObject[rtRid].jsonSchemaId;
+      hmRelatedRidsToObjectIds[rtRid] = getTermRefFromCache(rtRid);
     }
   }
 
@@ -412,7 +425,7 @@ function linkTermsViaRelation(relation) {
     // We then need to iterate again through all of the "assigned_terms"
     // and add a "$ref" for each one that is not self-referencing the term in which
     // we've placed the new relationship property
-    const aInheritedTermRids = getAncestralTerms(hmRidToObject[rtRid]);
+    const aInheritedTermRids = getAncestralTerms(getTermFromCache(rtRid));
     aInheritedTermRids.push(rtRid);
     for (let k = 0; k < aRids.length && bContinue; k++) {
       const otherRid = aRids[k];
@@ -433,10 +446,12 @@ function linkTermsViaRelation(relation) {
 // the provided Term inherits
 function getAncestralTerms(term) {
   let aTerms = [];
-  for (let i = 0; i < term.is_a_type_of.items.length; i++) {
-    const pRid = term.is_a_type_of.items[i]._id;
-    aTerms.push(pRid);
-    aTerms = aTerms.concat(getAncestralTerms(hmRidToObject[pRid]));
+  if (term !== null) {
+    for (let i = 0; i < term.is_a_type_of.items.length; i++) {
+      const pRid = term.is_a_type_of.items[i]._id;
+      aTerms.push(pRid);
+      aTerms = aTerms.concat(getAncestralTerms(getTermFromCache(pRid)));
+    }
   }
   return aTerms;
 }
@@ -445,10 +460,12 @@ function getAncestralTerms(term) {
 // inherit from (are derived from) the provided Term
 function getOffspringTerms(term) {
   let aTerms = [];
-  for (let i = 0; i < term.has_types.items.length; i++) {
-    const cRid = term.has_types.items[i]._id;
-    aTerms.push(cRid);
-    aTerms = aTerms.concat(getOffspringTerms(hmRidToObject[cRid]));
+  if (term !== null) {
+    for (let i = 0; i < term.has_types.items.length; i++) {
+      const cRid = term.has_types.items[i]._id;
+      aTerms.push(cRid);
+      aTerms = aTerms.concat(getOffspringTerms(getTermFromCache(cRid)));
+    }
   }
   return aTerms;
 }
