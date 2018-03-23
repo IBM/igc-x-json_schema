@@ -137,7 +137,7 @@ prompt.get(inputPrompt, function (errPrompt, result) {
       }
       // ... unless we've been invoked with a RID limiting the 
       // category under which to retrieve terms (then we'll limit)
-      if (argv.limit !== null && argv.limit !== "") {
+      if (typeof arg.limit !== 'undefined' && argv.limit !== null && argv.limit !== "") {
         qTerms.where = {
           "conditions": [{
             "property": "category_path._id",
