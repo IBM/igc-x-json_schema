@@ -197,7 +197,7 @@ function translateToIGCAssets(schema) {
   ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj);
 
   if (jsSchema.hasOwnProperty('properties')) {
-    translateProperties(jsSchema.properties, '#/definitions', 'JSchema', schemaId);
+    translateProperties(jsSchema.properties, '#/properties', 'JSchema', schemaId);
   }
 
   ah.addImportAction([schemaId], []);
