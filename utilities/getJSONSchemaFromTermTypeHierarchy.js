@@ -137,7 +137,7 @@ prompt.get(inputPrompt, function (errPrompt, result) {
       }
       // ... unless we've been invoked with a RID limiting the 
       // category under which to retrieve terms (then we'll limit)
-      if (typeof arg.limit !== 'undefined' && argv.limit !== null && argv.limit !== "") {
+      if (typeof argv.limit !== 'undefined' && argv.limit !== null && argv.limit !== "") {
         qTerms.where = {
           "conditions": [{
             "property": "category_path._id",
@@ -237,7 +237,8 @@ function getTermFromCache(rid) {
 
 // Actually construct a full JSON Schema object for the provided term
 function defineSchemaForTerm(term) {
-  
+
+  const sidecar = {};  
   const schema = {
     "id": argv.namespace,
     "$schema": "http://json-schema.org/draft-06/schema#"
@@ -252,6 +253,7 @@ function defineSchemaForTerm(term) {
 
     schema.id = schema.id + path + "/" + name;
     schema.description = getSingularDescription(term);
+    addToSidecar(sidecar, schema.id, term);
 
     if (hmNameClashCheck.hasOwnProperty(name)) {
       console.log("WARNING: found non-unique term name --> " + name + " <-- while processing schema " + path + "/" + name + " (" + rid + ")");
@@ -335,6 +337,7 @@ function defineSchemaForTerm(term) {
       outputSchema(schema);
     } */
 
+    outputSidecar(sidecar);
     outputSchema(schema);
 
   }
@@ -351,13 +354,13 @@ function linkTermsViaRelation(relation) {
 
   const relnSchId = argv.namespace + relnPath + "/" + relnName;
 
-  let schRelation = {};
+  let schRelation  = {};
 
   // If it has already been processed, the relationship itself has some of 
   // its own attributes ("has a" relationships), which we should include as 
   // part of configuring the relationship within the other object(s)
   if (hmProcessedRIDs.hasOwnProperty(relnRid)) {
-    schRelation = readSchema(relnSchId);
+    schRelation  = readSchema(relnSchId);
   }
   // Otherwise, the relationship has no attributes of its own, and should
   // presumably just setup a relationship between the objects
@@ -382,9 +385,9 @@ function linkTermsViaRelation(relation) {
   const aRids = Object.keys(hmRelatedRidsToObjectIds);
   for (let j = 0; j < aRids.length; j++) {
 
-    const rtRid     = aRids[j];
-    const rtObjId   = hmRelatedRidsToObjectIds[rtRid];
-    const schUpdate = readSchema(rtObjId);
+    const rtRid      = aRids[j];
+    const rtObjId    = hmRelatedRidsToObjectIds[rtRid];
+    const schUpdate  = readSchema(rtObjId);
 
     let bContinue   = true;
     if (!schUpdate.hasOwnProperty("properties")) {
@@ -505,6 +508,22 @@ function setJSONSchemaTypeFromIGCType(schema, type) {
 
 function getSchemaFileFromId(schemaId) {
   return argv.directory + path.sep + schemaId.split(/[\\/]/).pop() + ".json";
+}
+
+function addToSidecar(sidecar, schemaId, details) {
+  sidecar._schema = schemaId;
+  sidecar._id = details._id;
+  sidecar._description = getSingularDescription(details);
+}
+
+function outputSidecar(sidecar) {
+  const outputFile = getSchemaFileFromId(sidecar._schema) + ".igc";
+  const options = {
+    "encoding": 'utf8',
+    "mode": 0o644,
+    "flag": 'w'
+  };
+  fs.writeFileSync(outputFile, pd.json(sidecar), options);
 }
 
 function outputSchema(schema) {
