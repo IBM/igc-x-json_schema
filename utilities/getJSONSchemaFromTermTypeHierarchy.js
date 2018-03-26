@@ -61,11 +61,11 @@ const argv = yargs
 
 // Base settings
 const envCtx = new commons.EnvironmentContext(null, argv.authfile);
-
 prompt.override = argv;
 
 // Parameters and caches
 const maxRelatedTerms = 1000;
+const pathSep = "::";
 const cardinalityCA = "custom_Can be Multiple";
 const hmRidToObject = {};
 const hmProcessedRIDs = {};
@@ -241,6 +241,7 @@ function defineSchemaForTerm(term) {
   const sidecar = {};  
   const schema = {
     "id": argv.namespace,
+    "title": "",
     "$schema": "http://json-schema.org/draft-06/schema#"
   };
 
@@ -252,6 +253,7 @@ function defineSchemaForTerm(term) {
   if (!hmProcessedRIDs.hasOwnProperty(rid)) {
 
     schema.id = schema.id + path + "/" + name;
+    schema.title = name;
     schema.description = getSingularDescription(term);
     addToSidecar(sidecar, schema.id, term);
 
@@ -294,6 +296,14 @@ function defineSchemaForTerm(term) {
       schema.enum = [];
       for (let i = 0; i < term.has_types.items.length; i++) {
         schema.enum.push(term.has_types.items[i]._name);
+      }
+      // ... and also set the basic type for the enum
+      if (hmTermToType.hasOwnProperty(rid)) {
+        setJSONSchemaTypeFromIGCType(schema, hmTermToType[rid]);
+      } else {
+        // catch-all -- in case the term has not been associated with
+        // a data class, it will default to "string" as lowest common denominator
+        setJSONSchemaTypeFromIGCType(schema, "string");
       }
     } else {
       // otherwise, determine the simple data type
@@ -481,6 +491,14 @@ function getDefnPathFromCategoryPath(pathObj) {
   return defn;
 }
 
+function getIdentityForTerm(term) {
+  let path = "";
+  for (let i = term.category_path.items.length - 1; i >= 0; i--) {
+    path = path + term.category_path.items[i]._name + pathSep;
+  }
+  return path + term._name;
+}
+
 // Prefer the long_description (if it's populated),
 // if not take the short_description
 // or default to an empty description if both are empty
@@ -510,10 +528,11 @@ function getSchemaFileFromId(schemaId) {
   return argv.directory + path.sep + schemaId.split(/[\\/]/).pop() + ".json";
 }
 
-function addToSidecar(sidecar, schemaId, details) {
+function addToSidecar(sidecar, schemaId, term) {
   sidecar._schema = schemaId;
-  sidecar._id = details._id;
-  sidecar._description = getSingularDescription(details);
+  sidecar._id = term._id;
+  sidecar._description = getSingularDescription(term);
+  sidecar._identity = getIdentityForTerm(term);
 }
 
 function outputSidecar(sidecar) {
