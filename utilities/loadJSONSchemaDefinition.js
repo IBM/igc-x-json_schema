@@ -184,10 +184,19 @@ function translateToIGCAssets(schema) {
       } else if (key === 'id') {
         assetObj.$id = jsSchema[key];
       } else if (key === 'description') {
-        assetObj.short_description = jsSchema[key];
+        if (jsSchema[key].length > 255) {
+          assetObj.short_description = jsSchema[key].substring(0,251) + "...";
+          assetObj.long_description  = jsSchema[key];
+        } else {
+          assetObj.short_description = jsSchema[key];
+        }
       } else if (key === 'title') {
         assetObj.name = jsSchema[key];
-      } else if (key !== 'type' && key !== 'properties') {
+      } else if (key === 'type') {
+        assetObj.$type = jsSchema[key];
+      } else if (key === 'enum') {
+        assetObj.$enum = JSON.parse(JSON.stringify(jsSchema[key]));
+      } else if (key !== 'properties') {
         console.log(" ... found unexpected schema-level key: " + key);
       }
     }
@@ -235,7 +244,12 @@ function translatePropertyKeys(title, parentPath, propertyObj, parentType, paren
     const key = aKeys[i];
     if (propertyObj.hasOwnProperty(key)) {
       if (key === 'description') {
-        assetObj.short_description = propertyObj.description;
+        if (propertyObj.description.length > 255) {
+          assetObj.short_description = propertyObj.description.substring(0,251) + "...";
+          assetObj.long_description  = propertyObj.description;
+        } else {
+          assetObj.short_description = propertyObj.description;
+        }
       } else if (key !== 'properties' && key !== 'title' && key !== 'items') {
         if (key === 'example') {
           assetObj.$example = pd.json(JSON.stringify(propertyObj[key]));
