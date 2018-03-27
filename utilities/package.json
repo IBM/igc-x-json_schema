@@ -14,7 +14,7 @@
     "fs-extra": ">=0.30.0",
     "pretty-data": ">=0.40.0",
     "ibm-igc-rest": ">=0.8.0",
-    "ibm-igc-extensions": ">=0.2.3",
+    "ibm-igc-extensions": ">=0.5.2",
     "prompt": ">=1.0.0",
     "uppercamelcase": ">=3.0.0"
   },
