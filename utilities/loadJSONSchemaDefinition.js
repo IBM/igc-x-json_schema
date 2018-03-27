@@ -206,7 +206,7 @@ function translateToIGCAssets(schema) {
 
   const schemaId = mapObjectToNextId(assetObj.$id);
   if (aHierarchyIds.length > 0) {
-    ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj, '$JSON_Schema-JSNamespace', aHierarchyIds[aHierarchyIds.length - 1]);
+    ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj, '$JSNamespace', aHierarchyIds[aHierarchyIds.length - 1]);
   } else {
     ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj);
   }
@@ -236,7 +236,7 @@ function createContainmentHierarchyObjects(schemaId) {
     const hierarchyId = mapObjectToNextId(token);
     aIds.push(hierarchyId);
     if (parentId !== '') {
-      ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {}, '$JSON_Schema-JSNamespace', parentId);
+      ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {}, '$JSNamespace', parentId);
     } else {
       ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {});
     }
