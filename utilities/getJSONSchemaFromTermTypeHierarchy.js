@@ -564,5 +564,5 @@ function readSchema(schemaId) {
 }
 
 function formatNameForJSON(name) {
-  return uppercamelcase(name.replace(/[/]/g, "-"));
+  return uppercamelcase(name.replace(/[/\(\)]/g, "-"));
 }
