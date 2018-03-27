@@ -202,14 +202,48 @@ function translateToIGCAssets(schema) {
     }
   }
 
+  const aHierarchyIds = createContainmentHierarchyObjects(assetObj.$id);
+
   const schemaId = mapObjectToNextId(assetObj.$id);
-  ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj);
+  if (aHierarchyIds.length > 0) {
+    ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj, '$JSON_Schema-JSNamespace', aHierarchyIds[aHierarchyIds.length - 1]);
+  } else {
+    ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj);
+  }
 
   if (jsSchema.hasOwnProperty('properties')) {
     translateProperties(jsSchema.properties, '#/properties', 'JSchema', schemaId);
   }
 
-  ah.addImportAction([schemaId], []);
+  // Provide the hierarchy IDs as partial IDs, so they do not replace any other objects
+  // already placed within those hierarchies (if they already exist)
+  ah.addImportAction([schemaId], aHierarchyIds);
+
+}
+
+function createContainmentHierarchyObjects(schemaId) {
+
+  const aIds = [];
+
+  let idToProcess = schemaId;
+  if (idToProcess.indexOf('//') !== -1) {
+    idToProcess = idToProcess.substring(idToProcess.indexOf('//') + 2);
+  }
+  const aTokens = idToProcess.split('/');
+  let parentId = "";
+  for (let i = 0; i < aTokens.length - 1; i++) {
+    const token = aTokens[i];
+    const hierarchyId = mapObjectToNextId(token);
+    aIds.push(hierarchyId);
+    if (parentId !== '') {
+      ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {}, '$JSON_Schema-JSNamespace', parentId);
+    } else {
+      ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {});
+    }
+    parentId = hierarchyId;
+  }
+
+  return aIds;
 
 }
 
