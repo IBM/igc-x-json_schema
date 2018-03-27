@@ -85,6 +85,9 @@
       <attribute localId="schema" type="String" editable="false" multiValued="false">
         <label key="attr.JSchema.schema" inDefaultLocale="Schema" />
       </attribute>
+      <attribute localId="type" type="String" editable="false" multiValued="false">
+        <label key="attr.JSchema.type" inDefaultLocale="Type" />
+      </attribute>
     </headerSection>
   </class>
   <class localId="JSObject" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
