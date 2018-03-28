@@ -86,8 +86,11 @@ class JSONSchemaOpenIGC {
   /**
    * Read in and process a JSON Schema from the provided filename
    * @param {string} filename - the name of the file from which to read the JSON Schema definition
+   * @return {string[]} an array of any warnings (as strings) discovered during processing
    */
   readSchemaFromFile(filename) {
+
+    const aWarnings = [];
 
     const schema = fs.readFileSync(filename, 'utf8');
 
@@ -116,7 +119,7 @@ class JSONSchemaOpenIGC {
         } else if (key === 'enum') {
           assetObj.$enum = JSON.parse(JSON.stringify(jsSchema[key]));
         } else if (key !== 'properties') {
-          console.log(" ... found unexpected schema-level key: " + key);
+          aWarnings.push(" ... found unexpected schema-level key: " + key);
         }
       }
     }
@@ -137,6 +140,8 @@ class JSONSchemaOpenIGC {
     // Provide the hierarchy IDs as partial IDs, so they do not replace any other objects
     // already placed within those hierarchies (if they already exist)
     this._ah.addImportAction([schemaId], aHierarchyIds);
+
+    return aWarnings;
 
   }
 

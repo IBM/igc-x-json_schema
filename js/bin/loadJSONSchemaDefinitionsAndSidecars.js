@@ -90,14 +90,18 @@ prompt.get(inputPrompt, function (errPrompt, result) {
       return new Promise(function(resolve, reject) {
         if (path.extname(filename) === '.json') {
           const igcObj = new igcjson.JSONSchemaOpenIGC();
-          igcObj.readSchemaFromFile(argv.directory + path.sep + filename);
-          igcrest.createBundleAssets(pd.xmlmin(igcObj.getOpenIGCXML())).then(function(success) {
-            console.log("Assets created for: " + filename);
-            resolve("Assets created: " + pd.json(JSON.stringify(success)));
-          }, function(failure) {
-            console.error("ERROR: Creating assets for '" + filename + "' failed -- " + failure);
-            reject("ERROR: Creating assets for '" + filename + "' failed -- " + failure);
-          });
+          const aWarns = igcObj.readSchemaFromFile(argv.directory + path.sep + filename);
+          if (aWarns.length === 0) {
+            igcrest.createBundleAssets(pd.xmlmin(igcObj.getOpenIGCXML())).then(function(success) {
+              console.log("Assets created for: " + filename);
+              resolve("Assets created: " + pd.json(JSON.stringify(success)));
+            }, function(failure) {
+              console.error("ERROR: Creating assets for '" + filename + "' failed -- " + failure);
+              reject("ERROR: Creating assets for '" + filename + "' failed -- " + failure);
+            });
+          } else {
+            resolve("Skipping -- file produced warnings (" + filename + "): " + JSON.stringify(aWarns));
+          }
         } else {
           resolve("Skipping -- not a JSON file (" + filename + ").");
         }
