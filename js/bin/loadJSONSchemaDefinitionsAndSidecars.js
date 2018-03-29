@@ -168,7 +168,11 @@ prompt.get(inputPrompt, function (errPrompt, result) {
     Promise.all(igcCreationPromises).then(function() {
       return Promise.all(igcUpdatePromises);
     }).then(function() {
-      console.log("All JSON schema information loaded from '" + argv.directory + "'.");
+      igcrest.closeSession().then(function() {
+        console.log("All JSON schema information loaded from '" + argv.directory + "'.");
+      }, function(failure) {
+        console.log("All JSON schema information loaded from '" + argv.directory + "', but unable to close session: " + JSON.stringify(failure));
+      });
     })
     .catch(console.error);
 
