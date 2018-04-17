@@ -128,7 +128,7 @@ class JSONSchemaOpenIGC {
   
     const schemaId = this._mapObjectToNextId(assetObj.$id);
     if (aHierarchyIds.length > 0) {
-      this._ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj, '$JSNamespace', aHierarchyIds[aHierarchyIds.length - 1]);
+      this._ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj, '$JSPath', aHierarchyIds[aHierarchyIds.length - 1]);
     } else {
       this._ah.addAsset('$JSON_Schema-JSchema', assetObj.name, schemaId, assetObj);
     }
@@ -181,10 +181,12 @@ class JSONSchemaOpenIGC {
       const token = aTokens[i];
       const hierarchyId = this._mapObjectToNextId(token);
       aIds.push(hierarchyId);
-      if (parentId !== '') {
-        this._ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {}, '$JSNamespace', parentId);
-      } else {
+      if (i === 0) {
         this._ah.addAsset('$JSON_Schema-JSNamespace', token, hierarchyId, {});
+      } else if (i === 1) {
+        this._ah.addAsset('$JSON_Schema-JSPath', token, hierarchyId, {}, '$JSNamespace', parentId);
+      } else {
+        this._ah.addAsset('$JSON_Schema-JSPath', token, hierarchyId, {}, '$JSPath', parentId);
       }
       parentId = hierarchyId;
     }

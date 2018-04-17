@@ -20,14 +20,14 @@
  - description = long_description in IGC
 -->
 <descriptor xmlns="http://www.ibm.com/iis/igc/asset-type-descriptor" bundleId="JSON_Schema">
-  <family position="2" classRefs="JSNamespace,JSchema,JSObject,JSArray,JSPrimitive">
+  <family position="2" classRefs="JSNamespace,JSPath,JSchema,JSObject,JSArray,JSPrimitive">
     <label key="family1" inDefaultLocale="JSON Schemas"/>
   </family>
   <tree position="3" rootClassRefs="JSNamespace">
     <label key="tree1" inDefaultLocale="JSON Schemas"/>
   </tree>
   <!-- NOTE: CommonObject is the superclass definition of all the properties any sub-object can have -->
-  <class localId="CommonObject" containerClassRefs="JSNamespace,JSchema,JSObject,JSArray,JSPrimitive" dataAccessRole="None" canHaveImage="false">
+  <class localId="CommonObject" containerClassRefs="JSNamespace,JSPath,JSchema,JSObject,JSArray,JSPrimitive" dataAccessRole="None" canHaveImage="false">
     <label key="class.CommonObject" inDefaultLocale="Properties"/>
     <pluralLabel key="class-plural.CommonObject" inDefaultLocale="Properties"/>
     <headerSection>
@@ -78,9 +78,13 @@
       </attribute>
     </section>
   </class>
-  <class localId="JSNamespace" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
+  <class localId="JSNamespace" dataAccessRole="None" canHaveImage="false">
     <label key="class.JSNamespace" inDefaultLocale="JSON Schema Namespace"/>
     <pluralLabel key="class-plural.JSNamespace" inDefaultLocale="JSON Schema Namespaces"/>
+  </class>
+  <class localId="JSPath" dataAccessRole="None" canHaveImage="false" containerClassRefs="JSNamespace,JSPath">
+    <label key="class.JSPath" inDefaultLocale="JSON Schema Path"/>
+    <pluralLabel key="class-plural.JSPath" inDefaultLocale="JSON Schema Paths"/>
   </class>
   <class localId="JSchema" dataAccessRole="None" canHaveImage="false" superClassRef="CommonObject">
     <label key="class.JSchema" inDefaultLocale="JSON Schema"/>
