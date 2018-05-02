@@ -117,11 +117,11 @@ prompt.get(inputPrompt, function (errPrompt, result) {
           for (let i = 0; i < allDCs.length; i++) {
             // get data type from data class definition
             const types = allDCs[i].data_type_filter_elements_enum;
-            for (let j = 0; j < allDCs[i].assigned_to_terms.length; j++) {
+            for (let j = 0; j < allDCs[i].assigned_to_terms.items.length; j++) {
               // a term could be assigned multiple data classes, and actually each
               // data class could have multiple data types defined, so we need to
               // check and merge data types
-              const ridTerm = allDCs[i].assigned_to_terms[j]._id;
+              const ridTerm = allDCs[i].assigned_to_terms.items[j]._id;
               if (hmTermToType.hasOwnProperty(ridTerm)) {
                 hmTermToType[ridTerm] = mergeTypes(types.push(hmTermToType[ridTerm]));
               } else {
@@ -516,6 +516,12 @@ function getIdentityForTerm(term) {
     path = path + term.category_path.items[i]._name + pathSep;
   }
   return path + term._name;
+}
+
+function isLeafTerm(term) {
+  return (term.has_a.items.length === 0
+          && term.has_types.items.length === 0
+          && term.assigned_to_terms.length === 0);
 }
 
 // Prefer the long_description (if it's populated),
