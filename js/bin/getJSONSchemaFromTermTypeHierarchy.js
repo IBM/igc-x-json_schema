@@ -544,6 +544,8 @@ function setJSONSchemaTypeFromIGCType(schema, type) {
   } else if (type === "timestamp") {
     schema.type = "string";
     schema.format = "date-time";
+  } else if (type === "numeric") {
+    schema.type = "number";
   } else {
     schema.type = type;
   }
