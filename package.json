@@ -1,10 +1,11 @@
 {
-  "name": "ibm-igc-x-json_schema-utilities",
+  "name": "igc-x-json_schema",
   "version": "0.0.1",
   "description": "Utilities for making use of the JSON Schema OpenIGC bundle",
-  "main": "./index.js",
+  "main": "./js/index.js",
   "files": [
-    "loadJSONSchemaDefinition.js",
+    "./js/bin/getJSONSchemaFromTermTypeHierarchy.js",
+    "./js/bin/loadJSONSchemaDefinitionsAndSidecars.js",
     "LICENSE"
   ],
   "dependencies": {
@@ -42,10 +43,10 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/cmgrote/ibm-igc-x-json_schema.git"
+    "url": "https://github.com/ibm/igc-x-json_schema.git"
   },
   "bugs": {
-    "url": "https://github.com/cmgrote/ibm-igc-x-json_schema.git"
+    "url": "https://github.com/ibm/igc-x-json_schema.git"
   },
-  "homepage": "https://github.com/cmgrote/ibm-igc-x-json_schema.git"
+  "homepage": "https://github.com/ibm/igc-x-json_schema.git"
 }
