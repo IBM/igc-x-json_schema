@@ -18,6 +18,7 @@
 
 const igcext = require('ibm-igc-extensions');
 const fs = require('fs');
+const pd = require('pretty-data').pd;
 
 /**
  * JSONSchemaOpenIGC class -- for handling JSON Schema OpenIGC representation
