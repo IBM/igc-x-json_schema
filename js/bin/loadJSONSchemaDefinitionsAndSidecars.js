@@ -49,7 +49,7 @@ prompt.colors = false;
 // Command-line setup
 const yargs = require('yargs');
 const argv = yargs
-    .usage('Usage: $0 -d <path> -o <path> -a <authfile> -p <password>')
+    .usage('Usage: $0 -d <path> -a <authfile> -p <password>')
     .example('$0 -d /schema/location', 'creates and loads OpenIGC assets based on the JSON Schema files in the directory provided (and default credentials file in ~/.infosvrauth)')
     .alias('d', 'directory').nargs('d', 1).describe('f', 'Directory containing JSON Schema files and sidecars')
     .alias('a', 'authfile').nargs('a', 1).describe('a', 'Authorisation file containing environment context')
