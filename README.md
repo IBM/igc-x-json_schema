@@ -3,6 +3,12 @@
 
 Objective of this package is to provide an OpenIGC bundle for storing JSON Schema definitions, and utilities for creating new instances of these objects from JSON Schema files.  Note that this currently only covers JSON Schema itself, not any arbitrary JSON document.
 
+The package currently contains:
+
+- An OpenIGC bundle: to capture JSON Schema documents as a new set of asset types in IGC
+- A loading utility: to create instances of JSON Schema assets in IGC from JSON Schema documents
+- A generation utility: to generate JSON Schema files from IGC content (ie. the term type hierarchy)
+
 ## OpenIGC bundle
 
 The OpenIGC bundle is defined under the `JSON_Schema` directory.  This form is loadable using the utilities provided by the https://npmjs.com/package/ibm-igc-extensions module, or the https://galaxy.ansible.com/cmgrote/ibm-infosvr-openigc Ansible role.
@@ -15,9 +21,44 @@ The utilities are all written in NodeJS, and can therefore be "installed" by ens
 
 They each also make use of the https://npmjs.com/package/ibm-iis-commons module to provide some basic common connectivity functionality, like the authorisation files.  Refer to the `createInfoSvrAuthFile.js` utility there for more details.
 
+### loadJSONSchemaDefinitionsAndSidecars.js
+
+Example automation to construct an IGC asset XML file, and load this to IGC to instantiate new JSON Schema assets, from a JSON Schema file and (optionally) a related side-car.  (See the `getJSONSchemaFromTermTypeHierarchy.js` utility below for more information on the side-cars.)
+
+Usage:
+
+```
+node ./loadJSONSchemaDefinitionsAndSidecars.js
+		-d <path>
+		[-a <authfile>]
+		[-p <password>]
+```
+
+Loads the JSON Schema files from the provided path as new instances of the JSON Schema OpenIGC asset type, linking them to term information provided if side-cars are also found in the provided path.
+
+##### Examples:
+
+```
+node ./loadJSONSchemaDefinitionsAndSidecars.js
+		-d /tmp/schemas
+```
+
+Loads JSON Schema files and side-cars from `/tmp/schemas`, using the default credentials in `~/.infosvrauth`, and prompting the user for the environment's password.
+
+```
+node ./loadJSONSchemaDefinitionsAndSidecars.js
+		-d /tmp/schemas
+		-a ~/.infosvrauth-env2
+		-p mypassword
+```
+
+Loads JSON Schema files and side-cars from `/tmp/schemas`, using the credentials from `~/.infosvrauth-env2` and the password `mypassword`.
+
 ### getJSONSchemaFromTermTypeHierarchy.js
 
-Example automation to construct JSON Schema files from the Term Type Hierarchy in IGC.  Usage:
+Example automation to generate JSON Schema files from the Term Type Hierarchy in IGC.  Includes generating both the JSON Schema documents themselves, as well as an IGC-specific side-car that contains information on what terms were used to generate the schemas (ie. RIDs).
+
+Usage:
 
 ```
 node ./getJSONSchemaFromTermTypeHierarchy.js
@@ -28,7 +69,7 @@ node ./getJSONSchemaFromTermTypeHierarchy.js
 		[-p <password>]
 ```
 
-Produces both JSON Schema files (.json) as well as IGC-specific side-car files (.json.igc).  The side-car files can be used when loading the JSON Schema definitions back to IGC to link them back to the terms that were originally used to generate the JSON Schema (.json) files (see `loadJSONSchemaDefinitionsAndSidecars.js` utility below).
+Produces both JSON Schema files (.json) as well as IGC-specific side-car files (.json.igc).  The side-car files can be used when loading the JSON Schema definitions back to IGC to link them back to the terms that were originally used to generate the JSON Schema (.json) files (see `loadJSONSchemaDefinitionsAndSidecars.js` utility above).
 
 The actual processing of the term type hierarchy is based on a number of assumptions regarding the structure and use of relationships within the term type hierarchy:
 
@@ -58,37 +99,6 @@ node ./getJSONSchemaFromTermTypeHierarchy.js
 ```
 
 Creates JSON Schema files and side-cars in `/tmp/schemas` only for terms that reside within the category identified by RID `6662c0f2.ee6a64fe.jfam6idqm.1usr4v9.1j88b9.s8h0083bq24klt3f0slgd`, qualifying each schema ID with `http://example.com`, using the credentials from `~/.infosvrauth-env2` and the password `mypassword`.
-
-### loadJSONSchemaDefinitionsAndSidecars.js
-
-Example automation to construct an IGC asset XML file from a JSON Schema file and related side-car.  Usage:
-
-```
-node ./loadJSONSchemaDefinitionsAndSidecars.js
-		-d <path>
-		[-a <authfile>]
-		[-p <password>]
-```
-
-Loads the JSON Schema files from the provided path as new instances of the JSON Schema OpenIGC asset type, linking them to term information provided in the side-cars also found in the provided path.
-
-##### Examples:
-
-```
-node ./loadJSONSchemaDefinitionsAndSidecars.js
-		-d /tmp/schemas
-```
-
-Loads JSON Schema files and side-cars from `/tmp/schemas`, using the default credentials in `~/.infosvrauth`, and prompting the user for the environment's password.
-
-```
-node ./loadJSONSchemaDefinitionsAndSidecars.js
-		-d /tmp/schemas
-		-a ~/.infosvrauth-env2
-		-p mypassword
-```
-
-Loads JSON Schema files and side-cars from `/tmp/schemas`, using the credentials from `~/.infosvrauth-env2` and the password `mypassword`.
 
 ## JSON Schema coverage
 
