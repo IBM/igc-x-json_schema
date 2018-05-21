@@ -27,7 +27,7 @@ Example automation to construct an IGC asset XML file, and load this to IGC to i
 
 Usage:
 
-```
+```shell
 node ./loadJSONSchemaDefinitionsAndSidecars.js
 		-d <path>
 		[-a <authfile>]
@@ -38,14 +38,14 @@ Loads the JSON Schema files from the provided path as new instances of the JSON 
 
 ##### Examples:
 
-```
+```shell
 node ./loadJSONSchemaDefinitionsAndSidecars.js
 		-d /tmp/schemas
 ```
 
 Loads JSON Schema files and side-cars from `/tmp/schemas`, using the default credentials in `~/.infosvrauth`, and prompting the user for the environment's password.
 
-```
+```shell
 node ./loadJSONSchemaDefinitionsAndSidecars.js
 		-d /tmp/schemas
 		-a ~/.infosvrauth-env2
@@ -60,11 +60,13 @@ Example automation to generate JSON Schema files from the Term Type Hierarchy in
 
 Usage:
 
-```
+```shell
 node ./getJSONSchemaFromTermTypeHierarchy.js
 		-d <path>
 		-n <namespace>
+		-m <RID>
 		[-l <RID>]
+		[-s <file>]
 		[-a <authfile>]
 		[-p <password>]
 ```
@@ -81,24 +83,37 @@ The actual processing of the term type hierarchy is based on a number of assumpt
 
 ##### Examples:
 
-```
+```shell
 node ./getJSONSchemaFromTermTypeHierarchy.js
 		-d /tmp/schemas
 		-n "http://company.com"
+		-m "custom_Can be Multiple"
 ```
 
-Creates JSON Schema files and side-cars in `/tmp/schemas` for every term in IGC, qualifying each schema ID with `http://company.com`, using the default credentials in `~/.infosvrauth`, and prompting the user for the environment's password.
+Creates JSON Schema files and side-cars in `/tmp/schemas` for every term in IGC, qualifying each schema ID with `http://company.com`, using the default credentials in `~/.infosvrauth`, and prompting the user for the environment's password.  It uses a custom attribute named "Can be Multiple" to determine if an array should be created for a particular JSON property.
 
-```
+```shell
 node ./getJSONSchemaFromTermTypeHierarchy.js
 		-d /tmp/schemas
 		-n "http://example.com"
+		-m "custom_Can be Multiple"
 		-l "6662c0f2.ee6a64fe.jfam6idqm.1usr4v9.1j88b9.s8h0083bq24klt3f0slgd"
+		-s /tmp/sconfig.json
 		-a ~/.infosvrauth-env2
 		-p mypassword
 ```
 
-Creates JSON Schema files and side-cars in `/tmp/schemas` only for terms that reside within the category identified by RID `6662c0f2.ee6a64fe.jfam6idqm.1usr4v9.1j88b9.s8h0083bq24klt3f0slgd`, qualifying each schema ID with `http://example.com`, using the credentials from `~/.infosvrauth-env2` and the password `mypassword`.
+Creates JSON Schema files and side-cars in `/tmp/schemas` only for terms that reside within the category identified by RID `6662c0f2.ee6a64fe.jfam6idqm.1usr4v9.1j88b9.s8h0083bq24klt3f0slgd`, qualifying each schema ID with `http://example.com`, using the credentials from `~/.infosvrauth-env2` and the password `mypassword`.  It uses a custom attribute named "Can be Multiple" to determine if an array should be created for a particular JSON property, and outputs the term properties listed in the provided file `/tmp/sconfig.json` into the sidecar files.
+
+`/tmp/sconfig.json` would list properties as a JSON array:
+
+```javascript
+[
+	"short_description",
+	"long_description",
+	"custom_My Custom Attribute"
+]
+```
 
 ## JSON Schema coverage
 

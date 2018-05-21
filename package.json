@@ -17,7 +17,7 @@
     "ibm-igc-rest": ">=1.0.2",
     "ibm-igc-extensions": ">=0.5.2",
     "prompt": ">=1.0.0",
-    "uppercamelcase": ">=3.0.0"
+    "camelcase": ">=5.0.0"
   },
   "devDependencies": {
     "jsdoc": "^3.4.0",

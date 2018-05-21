@@ -25,7 +25,7 @@
  * @requires ibm-igc-rest
  * @requires fs-extra
  * @requires pretty-data
- * @requires uppercamelcase
+ * @requires camelcase
  * @requires yargs
  * @requires prompt
  * @param d {string} - directory into which to place the extracted JSON Schema files
@@ -39,21 +39,23 @@ const path = require('path');
 const fs = require('fs-extra');
 const pd = require('pretty-data').pd;
 const igcrest = require('ibm-igc-rest');
-const uppercamelcase = require('uppercamelcase');
+const camelCase = require('camelcase');
 const prompt = require('prompt');
 prompt.colors = false;
 
 // Command-line setup
 const yargs = require('yargs');
 const argv = yargs
-    .usage('Usage: $0 -d <path> -a <authfile> -p <password> -n <namespace>')
-    .example('$0 -d /tmp/schemas -n "http://company.com/#"', 'creates JSON Schema files in "/tmp/schemas" and qualifying all schema ids with "http://company.com/#" (using default credentials file in ~/.infosvrauth)')
+    .usage('Usage: $0 -d <path> -n <namespace> -m "<attributename>" [-l <RID> -s <file> -a <authfile> -p <password>]')
+    .example('$0 -d /tmp/schemas -n "http://company.com/#" -m "custom_Can be Multiple"', 'creates JSON Schema files in "/tmp/schemas" and qualifying all schema ids with "http://company.com/#" (using default credentials file in ~/.infosvrauth), and determining whether something should be an array using the custom attribute "Can be Multiple"')
     .alias('d', 'directory').nargs('d', 1).describe('d', 'JSON Schema output directory')
+    .alias('n', 'namespace').nargs('n', 1).describe('n', 'Unique namespaces to use for qualifying schema id')
+    .alias('m', 'multipleAttr').nargs('m', 1).describe('m', 'Name of custom attribute used to indicate multiplicity')
+    .alias('l', 'limit').nargs('l', 1).describe('l', 'Limit terms to those within a specific category (provide RID)')
+    .alias('s', 'sidecar').nargs('s', 1).describe('s', 'JSON configuration file defining properties to include in sidecars')
     .alias('a', 'authfile').nargs('a', 1).describe('a', 'Authorisation file containing environment context')
     .alias('p', 'password').nargs('p', 1).describe('p', 'Password for invoking REST API')
-    .alias('n', 'namespace').nargs('n', 1).describe('n', 'Unique namespaces to use for qualifying schema id')
-    .alias('l', 'limit').nargs('l', 1).describe('l', 'Limit terms to those within a specific category (provide RID)')
-    .demandOption(['d','n'])
+    .demandOption(['d','n','m'])
     .help('h')
     .alias('h', 'help')
     .wrap(yargs.terminalWidth())
@@ -61,19 +63,27 @@ const argv = yargs
 
 // Base settings
 const envCtx = new commons.EnvironmentContext(null, argv.authfile);
+let sideCarProperties = ["short_description", "long_description"];
+if (typeof argv.sidecar !== 'undefined' && argv.sidecar !== null && argv.sidecar !== "") {
+  sideCarProperties = JSON.parse(fs.readFileSync(argv.sidecar, {"encoding": 'utf8'}));
+  if (!Array.isArray(sideCarProperties)) {
+    console.error("ERROR: Provided sidecar configuration must be an array -- exiting.");
+    process.exit(1);
+  }
+}
 prompt.override = argv;
 
 // Parameters and caches
 const maxRelatedTerms = 1000;
 const pathSep = "::";
-const cardinalityCA = "custom_Can be Multiple";
+const cardinalityCA = argv.multipleAttr;
 const hmRidToObject = {};
 const hmProcessedRIDs = {};
 const hmNameClashCheck = {};
 const hmTermToType = {};
 
 // All the characteristics we need to investigate on terms
-const termProperties = [
+const minTermProperties = [
   "name",
   "category_path",
   "short_description",
@@ -86,6 +96,8 @@ const termProperties = [
   "assigned_to_terms",
   cardinalityCA
 ];
+
+const termProperties = Array.from(new Set(minTermProperties.concat(sideCarProperties)));
 
 // All the terms that
 // - have at least one "assigned terms" relationships to other terms
@@ -298,7 +310,11 @@ function defineSchemaForTerm(term) {
         const rObj  = getTermFromCache(rRid);
         // Check if the "has a" related term has multiple cardinality
         // (if so create an array out of it, otherwise leave it singular)
-        if (rObj !== null && rObj.hasOwnProperty(cardinalityCA) && rObj[cardinalityCA] === "yes") {
+        if (rObj !== null && rObj.hasOwnProperty(cardinalityCA)
+            && (rObj[cardinalityCA].toUpperCase() === "YES"
+                || rObj[cardinalityCA].toUpperCase() === "TRUE"
+                || rObj[cardinalityCA].toUpperCase() === "Y")
+            ) {
           schema.properties[rName] = {
             "type": "array",
             "items": {
@@ -557,9 +573,12 @@ function getSchemaFileFromId(schemaId) {
 
 function addToSidecar(sidecar, schemaId, term) {
   sidecar._schema = schemaId;
-  sidecar._id = term._id;
-  sidecar._description = getSingularDescription(term);
   sidecar._identity = getIdentityForTerm(term);
+  sidecar._id = term._id;
+  for (let i = 0; i < sideCarProperties.length; i++) {
+    const prop = sideCarProperties[i];
+    sidecar[prop] = term[prop];
+  }
 }
 
 function outputSidecar(sidecar) {
@@ -591,5 +610,5 @@ function readSchema(schemaId) {
 }
 
 function formatNameForJSON(name) {
-  return uppercamelcase(name.replace(/[/\(\)]/g, "-"));
+  return camelCase(name.replace(/[/\(\)]/g, "-"));
 }
