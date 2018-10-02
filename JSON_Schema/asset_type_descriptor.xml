@@ -23,7 +23,7 @@
   <family position="2" classRefs="JSNamespace,JSPath,JSchema,JSObject,JSArray,JSPrimitive">
     <label key="family1" inDefaultLocale="JSON Schemas"/>
   </family>
-  <tree position="3" rootClassRefs="JSNamespace">
+  <tree position="3" rootClassRefs="JSNamespace" iconClassRef="JSchema">
     <label key="tree1" inDefaultLocale="JSON Schemas"/>
   </tree>
   <!-- NOTE: CommonObject is the superclass definition of all the properties any sub-object can have -->
