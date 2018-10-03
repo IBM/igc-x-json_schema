@@ -275,6 +275,7 @@ class JSONSchemaOpenIGC {
     const assetObj = {};
   
     let arrayItemTypeIGC = "JSPrimitive";
+    let bObject = false;
   
     const aKeys = Object.keys(items);
     for (let i = 0; i < aKeys.length; i++) {
@@ -282,16 +283,20 @@ class JSONSchemaOpenIGC {
       if (items.hasOwnProperty(key)) {
         if (key === 'type') {
           arrayItemTypeIGC = JSONSchemaOpenIGC.getIGCTypeForSchemaType(items.type);
+          bObject = (arrayItemTypeIGC === 'JSObject');
         } else if (key === '$ref') {
           assetObj.$ref = items.$ref;
           arrayItemTypeIGC = "JSObject";
-        } else if (key !== 'type') {
+        } else if (key !== 'type' && key !== 'properties') {
           console.log(" ... found unhandled array item type: " + key);
         }
       }
     }
   
     this._ah.addAsset("$JSON_Schema-" + arrayItemTypeIGC, "items", itemId, assetObj, '$' + parentType, parentId);
+    if (bObject && items.hasOwnProperty("properties")) {
+      this._translateProperties(items.properties, path + "/properties", arrayItemTypeIGC, itemId);
+    }
   
   }
 
