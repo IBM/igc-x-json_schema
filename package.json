@@ -1,11 +1,12 @@
 {
   "name": "igc-x-json_schema",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Utilities for making use of the JSON Schema OpenIGC bundle",
   "main": "./js/index.js",
   "files": [
     "./js/bin/getJSONSchemaFromTermTypeHierarchy.js",
     "./js/bin/loadJSONSchemaDefinitionsAndSidecars.js",
+    "./js/bin/generateJSONSchemaForKafkaTopic.js",
     "LICENSE"
   ],
   "dependencies": {
@@ -17,7 +18,9 @@
     "ibm-igc-rest": ">=1.0.2",
     "ibm-igc-extensions": ">=0.5.2",
     "prompt": ">=1.0.0",
-    "camelcase": ">=5.0.0"
+    "camelcase": ">=5.0.0",
+    "ibm-iis-kafka": ">=0.3.0",
+    "generate-schema": ">=2.6.0"
   },
   "devDependencies": {
     "jsdoc": "^3.4.0",
@@ -43,10 +46,10 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ibm/igc-x-json_schema.git"
+    "url": "https://github.com/IBM/igc-x-json_schema.git"
   },
   "bugs": {
-    "url": "https://github.com/ibm/igc-x-json_schema.git"
+    "url": "https://github.com/IBM/igc-x-json_schema.git"
   },
-  "homepage": "https://github.com/ibm/igc-x-json_schema.git"
+  "homepage": "https://github.com/IBM/igc-x-json_schema.git"
 }
