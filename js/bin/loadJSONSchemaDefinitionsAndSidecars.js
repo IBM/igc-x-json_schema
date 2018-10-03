@@ -100,9 +100,11 @@ prompt.get(inputPrompt, function (errPrompt, result) {
               reject("ERROR: Creating assets for '" + filename + "' failed -- " + failure);
             });
           } else {
+            console.log("Skipping -- file produced warnings (" + filename + "): " + JSON.stringify(aWarns));
             resolve("Skipping -- file produced warnings (" + filename + "): " + JSON.stringify(aWarns));
           }
         } else {
+          console.log("Skipping -- not a JSON file (" + filename + ").");
           resolve("Skipping -- not a JSON file (" + filename + ").");
         }
       });
