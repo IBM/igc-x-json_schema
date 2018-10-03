@@ -115,6 +115,42 @@ Creates JSON Schema files and side-cars in `/tmp/schemas` only for terms that re
 ]
 ```
 
+### generateJSONSchemaForKafkaTopic.js
+
+Example automation to generate JSON Schema files from payloads found on a Kafka topic.
+
+Usage:
+
+```shell
+node ./generateJSONSchemaForKafkaTopic.js
+		-d <directory>
+		-n <namespace>
+		-c <connection>
+		-t <topic>
+		[-p <property>]
+```
+
+Produces JSON Schema files (.json) in the directory specified by the `directory` parameter that are ready-to-load (see `loadJSONSchemaDefinitionsAndSidecars.js` utility above).
+
+The optional `property` parameter allows you to specify the name of a property expected to exist in every payload on the topic, which can be used to distinguish different types of payloads (eg. different types of events) on that topic.  When provided, the utility will create a separate JSON Schema definition for each different value of that property; when not provided, a single JSON Schema definition will be created with the name of the topic itself.
+
+Generally it would be good practice to include the name of the topic as the last portion of the `namespace` parameter, in order to distinguish between different topics as part of the namespace itself.
+
+Note that the utility currently runs indefinitely looking for payloads on the topic specified: as the instructions on the command-line indicate, press CTRL-C when you are satisfied you have a sufficient number of payloads to generate accurate JSON Schema definitions.
+
+##### Examples:
+
+```shell
+node ./generateJSONSchemaForKafkaTopic.js
+		-d /tmp/schemas
+		-n "http://www.ibm.com/InfoSphere/InformationServer/InfosphereEvents"
+		-c localhost:2181
+		-t InfosphereEvents
+		-p eventType
+```
+
+Creates JSON Schema files for each different value of `eventType` in the payloads found on the `InfosphereEvents` Kafka topic accessible through a Zookeeper running on `localhost:2181`.
+
 ## JSON Schema coverage
 
 The intention is to be able to capture in IBM Information Governance Catalog (IGC) the same level of richness as would typically be documented / used in an API -- hence the initial focus is around support for the Schema Object as defined by the Open API specification (https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#schema-object).
